@@ -47,7 +47,7 @@ func NewApp(config *Config) *App {
 }
 
 func (a *App) initializeComponents() {
-	a.header = components.NewHeader(a.config.Server, a.config.Group)
+	a.header = components.NewHeader(a.tviewApp, a.config.Server, a.config.Group)
 
 }
 

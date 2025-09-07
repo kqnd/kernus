@@ -13,14 +13,16 @@ type Header struct {
 	view   *tview.TextView
 	ticker *time.Ticker
 	stopCh chan bool
+	app    *tview.Application
 }
 
-func NewHeader(server, group string) *Header {
+func NewHeader(app *tview.Application, server, group string) *Header {
 	h := &Header{
 		view:   tview.NewTextView(),
 		server: server,
 		group:  group,
 		stopCh: make(chan bool),
+		app:    app,
 	}
 
 	h.setupView()
@@ -31,8 +33,10 @@ func NewHeader(server, group string) *Header {
 
 func (h *Header) setupView() {
 	h.view.SetDynamicColors(true).
+		SetScrollable(false).
 		SetRegions(true).
 		SetWordWrap(true).
+		SetTextAlign(tview.AlignCenter).
 		SetBorder(true).
 		SetTitle("Connection Info")
 
@@ -58,7 +62,9 @@ func (h *Header) startClock() {
 		for {
 			select {
 			case <-h.ticker.C:
-				h.updateContent()
+				h.app.QueueUpdateDraw(func() {
+					h.updateContent()
+				})
 			case <-h.stopCh:
 				return
 			}
