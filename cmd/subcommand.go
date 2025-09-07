@@ -1,9 +1,8 @@
-package main
+package cmd
 
 import (
 	"fmt"
 
-	"github.com/kern/cmd"
 	"github.com/spf13/cobra"
 )
 
@@ -13,13 +12,14 @@ var sendCommand = &cobra.Command{
 	Short: "Send your machine to machines monitoring server",
 	Run: func(cmd *cobra.Command, args []string) {
 		if name == "" {
-			fmt.Println(name)
-		} else {
 			fmt.Println("no name provided")
+		} else {
+			fmt.Println(name)
 		}
 	},
 }
 
-func main() {
-	cmd.Execute()
+func init() {
+	rootCmd.AddCommand(sendCommand)
+	sendCommand.Flags().StringVarP(&name, "name", "n", "", "machine name")
 }
