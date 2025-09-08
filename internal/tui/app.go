@@ -18,7 +18,8 @@ type App struct {
 	tviewApp *tview.Application
 	config   *Config
 
-	header *components.Header
+	header   *components.Header
+	machines *components.MachineList
 
 	mainGrid *tview.Grid
 
@@ -48,7 +49,7 @@ func NewApp(config *Config) *App {
 
 func (a *App) initializeComponents() {
 	a.header = components.NewHeader(a.tviewApp, a.config.Server, a.config.Group)
-
+	a.machines = components.NewMachineList()
 }
 
 func (a *App) setupLayout() {
@@ -58,6 +59,7 @@ func (a *App) setupLayout() {
 		SetBorders(false)
 
 	a.mainGrid.AddItem(a.header.GetView(), 0, 0, 1, 2, 0, 0, false)
+	a.mainGrid.AddItem(a.machines.GetView(), 1, 0, 1, 1, 0, 0, true)
 	a.tviewApp.SetRoot(a.mainGrid, true).EnableMouse(true)
 }
 
@@ -67,7 +69,6 @@ func (a *App) quit() {
 	if a.refreshTicker != nil {
 		a.refreshTicker.Stop()
 	}
-
 	a.header.Stop()
 	a.tviewApp.Stop()
 }
