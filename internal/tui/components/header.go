@@ -33,13 +33,12 @@ func NewHeader(app *tview.Application, server, group string) *Header {
 
 func (h *Header) setupView() {
 	h.view.SetDynamicColors(true).
-		SetScrollable(false).
 		SetRegions(true).
 		SetWordWrap(true).
 		SetTextAlign(tview.AlignCenter).
+		SetScrollable(false).
 		SetBorder(true).
 		SetTitle("Connection Info")
-
 	h.updateContent()
 }
 
