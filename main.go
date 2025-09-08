@@ -1,8 +1,6 @@
 package main
 
-import (
-	"github.com/kern/cmd"
-)
+import "github.com/kern/cmd"
 
 func main() {
 	cmd.Execute()

@@ -9,7 +9,11 @@ import (
 )
 
 type JSONConfig struct {
-	Server string `json:"server"`
+	Server   string `json:"server"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	Token    string `json:"token"`
 }
 
 var server string
