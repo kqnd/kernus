@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/kern/internal/models"
 	"github.com/kern/internal/tui/components"
 	"github.com/rivo/tview"
 )
@@ -47,9 +48,19 @@ func NewApp(config *Config) *App {
 	return app
 }
 
+func toPtrSlice(ms []models.Machine) []*models.Machine {
+	out := make([]*models.Machine, len(ms))
+	for i := range ms {
+		out[i] = &ms[i]
+	}
+	return out
+}
+
 func (a *App) initializeComponents() {
+
 	a.header = components.NewHeader(a.tviewApp, a.config.Server, a.config.Group)
-	a.machines = components.NewMachineList()
+	a.machines = components.NewMachineList(toPtrSlice(models.MockMachines()))
+
 }
 
 func (a *App) setupLayout() {

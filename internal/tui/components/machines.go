@@ -15,14 +15,15 @@ type MachineList struct {
 	onSelected func(*models.Machine)
 }
 
-func NewMachineList() *MachineList {
+func NewMachineList(machines []*models.Machine) *MachineList {
 	ml := &MachineList{
 		list:     tview.NewList(),
-		machines: make([]*models.Machine, 0),
+		machines: machines,
 	}
 
 	ml.setupView()
 	ml.setupKeyBindings()
+	ml.refreshView()
 	return ml
 }
 
@@ -78,10 +79,10 @@ func (ml *MachineList) formatSecondaryText(machine *models.Machine) string {
 
 	if machine.Status == models.StatusOffline {
 		timeSince := time.Since(machine.LastSeen)
-		return fmt.Sprintf("[%s]%s[white] | Last: %s | Group: %s", statusColor, machine.Status, ml.formatDuration(timeSince), machine.Group)
+		return fmt.Sprintf("[%s]%s[white] | Last: %s", statusColor, machine.Status, ml.formatDuration(timeSince))
 	}
 
-	return fmt.Sprintf("[%s]%s[white] | CPU: %.1f%% | Mem: %.1f%% | %s", statusColor, machine.Status, machine.CPUUsage, machine.MemoryUsage.Percentage(), machine.Group)
+	return fmt.Sprintf("[%s]%s[white]  | CPU: %.1f%%", statusColor, machine.Status, machine.CPUUsage)
 }
 
 func (ml *MachineList) formatDuration(d time.Duration) string {
