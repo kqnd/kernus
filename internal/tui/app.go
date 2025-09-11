@@ -7,6 +7,7 @@ import (
 	"github.com/kern/internal/models"
 	"github.com/kern/internal/tui/components"
 	"github.com/rivo/tview"
+	nundb "github.com/viewfromaside/nun-db-go"
 )
 
 type Config struct {
@@ -19,6 +20,7 @@ type Config struct {
 type App struct {
 	tviewApp *tview.Application
 	config   *Config
+	nundb    *nundb.Client
 
 	header   *components.Header
 	machines *components.MachineList
@@ -33,6 +35,7 @@ type App struct {
 }
 
 func NewApp(config *Config) *App {
+
 	if config.RefreshRate == 0 {
 		config.RefreshRate = 30 * time.Second
 	}
