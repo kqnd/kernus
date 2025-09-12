@@ -1,3 +1,7 @@
 {
-  "server": "ws://localhost:3012"
+  "server": "value",
+  "username": "value",
+  "password": "value",
+  "database": "db",
+  "token": "token"
 }

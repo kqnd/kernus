@@ -15,6 +15,8 @@ var seeCommand = &cobra.Command{
 	Long:  "Launch the TUI interface to monitor machines on the specified server",
 	Run: func(cmd *cobra.Command, args []string) {
 
+		ExitIfIsMissingFields()
+
 		config := &tui.Config{
 			Server: "server",
 			Group:  group,
@@ -28,6 +30,7 @@ var seeCommand = &cobra.Command{
 }
 
 func init() {
+
 	rootCmd.AddCommand(seeCommand)
 	seeCommand.Flags().StringVarP(&group, "group", "g", "", "group")
 }
