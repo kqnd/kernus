@@ -11,8 +11,8 @@ import (
 )
 
 type Details struct {
-	view           *tview.TextView
-	currentMachine *models.Machine
+	view             *tview.TextView
+	currentContainer *models.Container
 }
 
 func NewDetails() *Details {
@@ -23,20 +23,20 @@ func NewDetails() *Details {
 			SetScrollable(true),
 	}
 
-	d.view.SetBorder(true).SetTitle("Machine Details")
-	d.view.SetText("[yellow]Select a machine to view details[white]")
+	d.view.SetBorder(true).SetTitle("Container Details")
+	d.view.SetText("[yellow]Select a container to view details[white]")
 
 	return d
 }
 
-func (d *Details) ShowMachine(machine *models.Machine) {
-	d.currentMachine = machine
+func (d *Details) ShowContainer(container *models.Container) {
+	d.currentContainer = container
 	d.updateView()
 }
 
 func (d *Details) updateView() {
-	if d.currentMachine == nil {
-		d.view.SetText("[yellow]Select a machine to view details[white]")
+	if d.currentContainer == nil {
+		d.view.SetText("[yellow]Select a container to view details[white]")
 		return
 	}
 
@@ -45,37 +45,62 @@ func (d *Details) updateView() {
 }
 
 func (d *Details) buildContent() string {
-	m := d.currentMachine
+	c := d.currentContainer
 
-	return fmt.Sprintf(`[yellow]Machine: %s[white]
+	return fmt.Sprintf(`[yellow]Container: %s[white]
 
-[yellow]Status:[white] [%s]%s[white]
-[yellow]IP:[white] %s
-[yellow]Group:[white] %s
-[yellow]Last Seen:[white] %s
+[yellow]Status:[white] [%s]%s %s[white]
+[yellow]ID:[white] %s
+[yellow]Image:[white] %s
+[yellow]Command:[white] %s
+[yellow]State:[white] %s
+
+[yellow]Timing:[white]
+• Created: %s
+• Age: %s
+• Uptime: %s
 
 [yellow]Resources:[white]
 • CPU: %.1f%%
 • Memory: %s (%.1f%%)
-• Disk: %s (%.1f%%)
-• Uptime: %s
 
-[yellow]Services (%d):[white]
+[yellow]Networks (%d):[white]
+%s
+
+[yellow]Ports (%d):[white]
+%s
+
+[yellow]Mounts (%d):[white]
+%s
+
+[yellow]Labels (%d):[white]
 %s`,
-		m.Name,
-		m.Status.Color(), m.Status,
-		m.IP,
-		m.Group,
-		d.formatTime(m.LastSeen),
-		m.CPUUsage,
-		m.MemoryUsage.String(), m.MemoryUsage.Percentage(),
-		m.DiskUsage.String(), m.DiskUsage.Percentage(),
-		m.Uptime.String(),
-		len(m.Processes),
-		d.buildServicesList(m.Processes))
+		c.ShortName(),
+		c.Status.Color(), c.Status.Icon(), c.Status,
+		c.ShortID(),
+		c.Image,
+		d.truncateString(c.Command, 50),
+		c.State,
+		d.formatTime(c.Created),
+		c.FormatAge(),
+		c.FormatUptime(),
+		c.CPUUsage,
+		c.Memory.String(), c.Memory.Percentage(),
+		len(c.Networks),
+		d.buildNetworksList(c.Networks),
+		len(c.Ports),
+		d.buildPortsList(c.Ports),
+		len(c.Mounts),
+		d.buildMountsList(c.Mounts),
+		len(c.Labels),
+		d.buildLabelsList(c.Labels))
 }
 
 func (d *Details) formatTime(t time.Time) string {
+	if t.IsZero() {
+		return "Never"
+	}
+
 	duration := time.Since(t)
 	if duration < time.Minute {
 		return fmt.Sprintf("%ds ago", int(duration.Seconds()))
@@ -85,18 +110,79 @@ func (d *Details) formatTime(t time.Time) string {
 	return fmt.Sprintf("%dh ago", int(duration.Hours()))
 }
 
-func (d *Details) buildServicesList(processes []models.Process) string {
-	if len(processes) == 0 {
-		return "• No services running"
+func (d *Details) buildNetworksList(networks []models.Network) string {
+	if len(networks) == 0 {
+		return "• No networks"
 	}
 
-	var services strings.Builder
-	for _, proc := range processes {
-		services.WriteString(fmt.Sprintf("• %s (%s:%d)\n",
-			proc.Name, proc.Address, proc.Port))
+	var result strings.Builder
+	for _, network := range networks {
+		if network.IPAddress != "" {
+			result.WriteString(fmt.Sprintf("• %s (%s)\n",
+				network.Name, network.IPAddress))
+		} else {
+			result.WriteString(fmt.Sprintf("• %s\n", network.Name))
+		}
 	}
 
-	return strings.TrimSuffix(services.String(), "\n")
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+func (d *Details) buildPortsList(ports []models.Port) string {
+	if len(ports) == 0 {
+		return "• No ports exposed"
+	}
+
+	var result strings.Builder
+	for _, port := range ports {
+		result.WriteString(fmt.Sprintf("• %s\n", port.String()))
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+func (d *Details) buildMountsList(mounts []models.Mount) string {
+	if len(mounts) == 0 {
+		return "• No mounts"
+	}
+
+	var result strings.Builder
+	for _, mount := range mounts {
+		result.WriteString(fmt.Sprintf("• %s (%s, %s)\n",
+			mount.String(), mount.Type, mount.Mode))
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+func (d *Details) buildLabelsList(labels map[string]string) string {
+	if len(labels) == 0 {
+		return "• No labels"
+	}
+
+	var result strings.Builder
+	count := 0
+	maxLabels := 10 // Limita a exibição para não ficar muito longo
+
+	for key, value := range labels {
+		if count >= maxLabels {
+			result.WriteString("• ... and more\n")
+			break
+		}
+
+		truncatedValue := d.truncateString(value, 30)
+		result.WriteString(fmt.Sprintf("• %s: %s\n", key, truncatedValue))
+		count++
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+func (d *Details) truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }
 
 func (d *Details) GetView() tview.Primitive {

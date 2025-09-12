@@ -22,9 +22,9 @@ type App struct {
 	config   *Config
 	nundb    *nundb.Client
 
-	header   *components.Header
-	machines *components.MachineList
-	details  *components.Details
+	header     *components.Header
+	containers *components.ContainerList
+	details    *components.Details
 
 	mainGrid *tview.Grid
 
@@ -53,25 +53,25 @@ func NewApp(config *Config) *App {
 	return app
 }
 
-func toPtrSlice(ms []models.Machine) []*models.Machine {
-	out := make([]*models.Machine, len(ms))
-	for i := range ms {
-		out[i] = &ms[i]
+func toPtrSlice(containers []models.Container) []*models.Container {
+	out := make([]*models.Container, len(containers))
+	for i := range containers {
+		out[i] = &containers[i]
 	}
 	return out
 }
 
 func (a *App) initializeComponents() {
 	a.header = components.NewHeader(a.tviewApp, a.config.Server, a.config.Group)
-	a.machines = components.NewMachineList(toPtrSlice(models.MockMachines()))
+	a.containers = components.NewContainerList(toPtrSlice(models.MockContainers()))
 	a.details = components.NewDetails()
 
-	a.machines.SetSelectedFunc(func(m *models.Machine) {
-		a.details.ShowMachine(m)
+	a.containers.SetSelectedFunc(func(c *models.Container) {
+		a.details.ShowContainer(c) // Assumindo que você tem ou criará este método
 	})
 
 	a.focusables = []tview.Primitive{
-		a.machines.GetView(),
+		a.containers.GetView(),
 		a.details.GetView(),
 	}
 }
@@ -79,11 +79,11 @@ func (a *App) initializeComponents() {
 func (a *App) setupLayout() {
 	a.mainGrid = tview.NewGrid().
 		SetRows(3, 0).
-		SetColumns(35, 0).
+		SetColumns(40, 0).
 		SetBorders(false)
 
 	a.mainGrid.AddItem(a.header.GetView(), 0, 0, 1, 2, 0, 0, false)
-	a.mainGrid.AddItem(a.machines.GetView(), 1, 0, 1, 1, 0, 0, true)
+	a.mainGrid.AddItem(a.containers.GetView(), 1, 0, 1, 1, 0, 0, true)
 	a.mainGrid.AddItem(a.details.GetView(), 1, 1, 1, 1, 0, 0, false)
 
 	a.tviewApp.SetRoot(a.mainGrid, true).EnableMouse(true)
@@ -122,8 +122,8 @@ func (a *App) switchFocus() {
 }
 
 func (a *App) refreshData() {
-	machines := toPtrSlice(models.MockMachines())
-	a.machines.UpdateMachines(machines)
+	containers := toPtrSlice(models.MockContainers())
+	a.containers.UpdateContainers(containers)
 	a.tviewApp.Draw()
 }
 
@@ -137,6 +137,22 @@ func (a *App) quit() {
 	a.tviewApp.Stop()
 }
 
+func (a *App) startAutoRefresh() {
+	if a.refreshTicker != nil {
+		a.refreshTicker.Stop()
+	}
+
+	a.refreshTicker = time.NewTicker(a.config.RefreshRate)
+	go func() {
+		for range a.refreshTicker.C {
+			if !a.isRunning {
+				return
+			}
+			a.refreshData()
+		}
+	}()
+}
+
 func (a *App) Run() error {
 	a.initializeComponents()
 	a.setupLayout()
@@ -145,6 +161,8 @@ func (a *App) Run() error {
 	a.tviewApp.SetFocus(a.focusables[0])
 
 	a.isRunning = true
+	a.startAutoRefresh()
+
 	if err := a.tviewApp.Run(); err != nil {
 		return err
 	}

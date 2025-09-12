@@ -7,20 +7,20 @@ import (
 )
 
 type Container struct {
-	ID       string            `json:id`
-	Name     string            `json:name`
-	Image    string            `json:image`
-	Status   ContainerStatus   `json:status`
-	State    string            `json:state`
-	Created  time.Time         `json:created`
-	Started  time.Time         `json:started`
-	Ports    []Port            `json:ports`
-	Mounts   []Mount           `json:mounts`
-	Networks []Network         `json:networks`
-	Labels   map[string]string `json:labels`
-	Command  string            `json:command`
-	CPUUsage float64           `json:cpu_usage`
-	Memory   ContainerMemory   `json:memory`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Image    string            `json:"image"`
+	Status   ContainerStatus   `json:"status"`
+	State    string            `json:"state"`
+	Created  time.Time         `json:"created"`
+	Started  time.Time         `json:"started"`
+	Ports    []Port            `json:"ports"`
+	Mounts   []Mount           `json:"mounts"`
+	Networks []Network         `json:"networks"`
+	Labels   map[string]string `json:"labels"`
+	Command  string            `json:"command"`
+	CPUUsage float64           `json:"cpu_usage"`
+	Memory   ContainerMemory   `json:"memory"`
 }
 
 type ContainerStatus string
@@ -70,7 +70,7 @@ type Port struct {
 	PrivatePort int    `json:"private_port"`
 	PublicPort  int    `json:"public_port,omitempty"`
 	Type        string `json:"type"`
-	IP          string `json:"ip, omitempty"`
+	IP          string `json:"ip,omitempty"`
 }
 
 func (p Port) String() string {
@@ -102,8 +102,17 @@ type ContainerMemory struct {
 	Limit int64 `json:"limit"`
 }
 
+func (m ContainerMemory) Percentage() float64 {
+	if m.Limit == 0 {
+		return 0
+	}
+	return float64(m.Usage) / float64(m.Limit) * 100
+}
+
 func (m ContainerMemory) String() string {
-	return fmt.Sprintf("%1.fMB / %.1fMB", float64(m.Usage)/1024/1024, float64(m.Limit)/1024/1024)
+	return fmt.Sprintf("%.1fMB / %.1fMB",
+		float64(m.Usage)/1024/1024,
+		float64(m.Limit)/1024/1024)
 }
 
 func (c *Container) ShortID() string {
@@ -140,7 +149,7 @@ func (c *Container) FormatAge() string {
 func (c *Container) FormatUptime() string {
 	uptime := c.Uptime()
 	if uptime == 0 {
-		return "not running"
+		return "Not running"
 	}
 	return formatDuration(uptime)
 }
@@ -157,6 +166,20 @@ func (c *Container) MainPort() string {
 	}
 
 	return c.Ports[0].String()
+}
+
+func (c *Container) ShortPort() string {
+	if len(c.Ports) == 0 {
+		return "No ports"
+	}
+
+	for _, port := range c.Ports {
+		if port.PublicPort > 0 {
+			return fmt.Sprintf("%d", port.PublicPort)
+		}
+	}
+
+	return fmt.Sprintf("%d", c.Ports[0].PublicPort)
 }
 
 func (c *Container) ImageTag() string {
@@ -200,8 +223,8 @@ func MockContainers() []Container {
 			Command:  "nginx -g 'daemon off;'",
 			CPUUsage: 5.2,
 			Memory: ContainerMemory{
-				Usage: 50 * 1024 * 1024,  // 50MB
-				Limit: 512 * 1024 * 1024, // 512MB
+				Usage: 50 * 1024 * 1024,
+				Limit: 512 * 1024 * 1024,
 			},
 			Labels: map[string]string{
 				"com.docker.compose.service": "web",
@@ -222,8 +245,8 @@ func MockContainers() []Container {
 			Command:  "docker-entrypoint.sh postgres",
 			CPUUsage: 15.7,
 			Memory: ContainerMemory{
-				Usage: 200 * 1024 * 1024,  // 200MB
-				Limit: 1024 * 1024 * 1024, // 1GB
+				Usage: 200 * 1024 * 1024,
+				Limit: 1024 * 1024 * 1024,
 			},
 			Labels: map[string]string{
 				"com.docker.compose.service": "database",
@@ -244,7 +267,7 @@ func MockContainers() []Container {
 			CPUUsage: 0,
 			Memory: ContainerMemory{
 				Usage: 0,
-				Limit: 256 * 1024 * 1024, // 256MB
+				Limit: 256 * 1024 * 1024,
 			},
 			Labels: map[string]string{
 				"com.docker.compose.service": "cache",
@@ -264,8 +287,8 @@ func MockContainers() []Container {
 			Command:  "npm start",
 			CPUUsage: 25.4,
 			Memory: ContainerMemory{
-				Usage: 150 * 1024 * 1024, // 150MB
-				Limit: 512 * 1024 * 1024, // 512MB
+				Usage: 150 * 1024 * 1024,
+				Limit: 512 * 1024 * 1024,
 			},
 			Labels: map[string]string{
 				"version":     "1.2.3",
@@ -286,8 +309,8 @@ func MockContainers() []Container {
 			Command:  "/run.sh",
 			CPUUsage: 0,
 			Memory: ContainerMemory{
-				Usage: 80 * 1024 * 1024,  // 80MB
-				Limit: 256 * 1024 * 1024, // 256MB
+				Usage: 80 * 1024 * 1024,
+				Limit: 256 * 1024 * 1024,
 			},
 			Labels: map[string]string{
 				"com.docker.compose.service": "monitoring",
