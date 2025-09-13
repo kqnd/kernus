@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/kern/internal/docker"
 	"github.com/kern/internal/models"
 	"github.com/rivo/tview"
 )
@@ -14,6 +15,7 @@ import (
 type Details struct {
 	view             *tview.TextView
 	currentContainer *models.Container
+	docker           *docker.Client
 	tabs             []string
 	currentTab       int
 }
@@ -25,7 +27,7 @@ const (
 	TAB_STORAGE
 )
 
-func NewDetails() *Details {
+func NewDetails(docker *docker.Client) *Details {
 	d := &Details{
 		view: tview.NewTextView().
 			SetDynamicColors(true).
@@ -35,6 +37,7 @@ func NewDetails() *Details {
 			}),
 		tabs:       []string{"Overview", "Stats", "Network", "Storage"},
 		currentTab: TAB_OVERVIEW,
+		docker:     docker,
 	}
 
 	d.view.SetBorder(true).SetTitle(" Container Details ")
@@ -48,11 +51,26 @@ func NewDetails() *Details {
 		case tcell.KeyRight:
 			d.NextTab()
 			return nil
+
+		}
+
+		switch event.Rune() {
+		case 'r', 'R':
+			go func() {
+				d.restartDocker()
+			}()
+			return nil
 		}
 		return event
 	})
 
 	return d
+}
+
+func (d *Details) restartDocker() {
+	d.currentContainer.Status = models.StatusRestarting
+	d.docker.RestartContainer(d.currentContainer.ID)
+	d.updateView()
 }
 
 func (d *Details) ShowContainer(container *models.Container) {

@@ -134,7 +134,7 @@ func (a *App) initializeComponents() {
 	}
 
 	a.containers = components.NewContainerList(containers)
-	a.details = components.NewDetails()
+	a.details = components.NewDetails(a.docker)
 
 	a.containers.SetSelectedFunc(func(c *models.Container) {
 		a.details.ShowContainer(c)
@@ -201,9 +201,6 @@ func (a *App) setupKeyBindings() {
 		case tcell.KeyTab:
 			a.switchFocus()
 			return nil
-		case tcell.KeyF5, tcell.KeyCtrlR:
-			a.forceRefresh()
-			return nil
 		case tcell.KeyF1, tcell.KeyF2, tcell.KeyF3, tcell.KeyF4, tcell.KeyF6:
 			a.switchDetailsTab(event.Key())
 			return nil
@@ -212,9 +209,6 @@ func (a *App) setupKeyBindings() {
 		switch event.Rune() {
 		case 'q', 'Q':
 			a.quit()
-			return nil
-		case 'r', 'R':
-			a.forceRefresh()
 			return nil
 		case '1', '2', '3', '4', '5':
 			tabIndex := int(event.Rune() - '1')
