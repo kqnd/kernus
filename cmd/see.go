@@ -22,7 +22,11 @@ var seeCommand = &cobra.Command{
 			Group:  group,
 		}
 
+		NUNDB_CLIENT.CreateDatabase("kern", "kern-pwd")
+		NUNDB_CLIENT.UseDatabase("kern", "kern-pwd")
+
 		app := tui.NewApp(config)
+		app.SetNunDBClient(NUNDB_CLIENT)
 		if err := app.Run(); err != nil {
 			fmt.Printf("error running monitoring interface: %v\n", err)
 		}
@@ -30,7 +34,6 @@ var seeCommand = &cobra.Command{
 }
 
 func init() {
-
 	rootCmd.AddCommand(seeCommand)
 	seeCommand.Flags().StringVarP(&group, "group", "g", "", "group")
 }

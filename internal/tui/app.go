@@ -95,22 +95,35 @@ func (a *App) startAutoRefresh() {
 			case <-a.stopChan:
 				return
 			case <-a.refreshTicker.C:
-				containers, err := a.loadContainers()
-				if err != nil {
-					fmt.Printf("Error loading containers: %v\n", err)
-					continue
-				}
-
-				a.tviewApp.QueueUpdateDraw(func() {
-					a.containers.UpdateContainers(containers)
-
-					if selected := a.containers.GetSelectedContainer(); selected != nil {
-						a.refreshContainerStats(selected)
-					}
-				})
+				a.performRefresh(false)
 			}
 		}
 	}()
+}
+
+func (a *App) performRefresh(forceRefresh bool) {
+	// Salva a seleção atual antes do refresh
+	var selectedID string
+	if currentSelected := a.containers.GetSelectedContainer(); currentSelected != nil {
+		selectedID = currentSelected.ID
+	}
+
+	containers, err := a.loadContainers()
+	if err != nil {
+		fmt.Printf("Error loading containers: %v\n", err)
+		return
+	}
+
+	a.tviewApp.QueueUpdateDraw(func() {
+		a.containers.UpdateContainersPreserveSelection(containers, selectedID)
+
+		if selected := a.containers.GetSelectedContainer(); selected != nil {
+			if forceRefresh && a.nundb != nil {
+				a.nundb.Set("last_selected", selected.ID)
+			}
+			a.refreshContainerStats(selected)
+		}
+	})
 }
 
 func (a *App) initializeComponents() {
@@ -162,6 +175,10 @@ func (a *App) refreshContainerStats(container *models.Container) {
 			})
 		}
 	}()
+}
+
+func (a *App) SetNunDBClient(client *nundb.Client) {
+	a.nundb = client
 }
 
 func (a *App) setupLayout() {
@@ -290,20 +307,7 @@ func (a *App) handleContainerAction(action string) {
 }
 
 func (a *App) forceRefresh() {
-	go func() {
-		containers, err := a.loadContainers()
-		if err != nil {
-			fmt.Printf("Error refreshing containers: %v\n", err)
-			return
-		}
-
-		a.tviewApp.QueueUpdateDraw(func() {
-			a.containers.UpdateContainers(containers)
-			if selected := a.containers.GetSelectedContainer(); selected != nil {
-				a.refreshContainerStats(selected)
-			}
-		})
-	}()
+	a.performRefresh(true)
 }
 
 func (a *App) switchFocus() {

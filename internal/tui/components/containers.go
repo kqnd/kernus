@@ -26,6 +26,21 @@ func NewContainerList(containers []*models.Container) *ContainerList {
 	return cl
 }
 
+func (cl *ContainerList) UpdateContainersPreserveSelection(containers []*models.Container, selectedID string) {
+	cl.containers = containers
+
+	cl.refreshView()
+
+	if selectedID != "" {
+		cl.SelectContainer(selectedID)
+	} else if len(cl.containers) > 0 {
+		cl.list.SetCurrentItem(0)
+		if cl.onSelected != nil {
+			cl.onSelected(cl.containers[0])
+		}
+	}
+}
+
 func (cl *ContainerList) setupView() {
 	cl.list.SetBorder(true).
 		SetTitle("Containers")

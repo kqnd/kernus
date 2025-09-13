@@ -1,7 +1,7 @@
 {
-  "server": "value",
-  "username": "value",
-  "password": "value",
-  "database": "db",
-  "token": "token"
+  "server": "ws://localhost:3012",
+  "username": "user-name",
+  "password": "user-pwd",
+  "database": "kern",
+  "token": "kern-pwd"
 }
