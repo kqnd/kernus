@@ -67,7 +67,7 @@ func (a *App) initializeComponents() {
 	a.details = components.NewDetails()
 
 	a.containers.SetSelectedFunc(func(c *models.Container) {
-		a.details.ShowContainer(c) // Assumindo que você tem ou criará este método
+		a.details.ShowContainer(c)
 	})
 
 	a.focusables = []tview.Primitive{

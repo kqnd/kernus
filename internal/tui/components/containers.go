@@ -41,7 +41,6 @@ func (cl *ContainerList) setupKeyBindings() {
 	cl.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			// Handle container selection
 			index := cl.list.GetCurrentItem()
 			if index >= 0 && index < len(cl.containers) && cl.onSelected != nil {
 				cl.onSelected(cl.containers[index])

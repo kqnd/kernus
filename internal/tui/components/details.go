@@ -1,4 +1,3 @@
-// internal/tui/components/details.go
 package components
 
 import (
@@ -162,7 +161,7 @@ func (d *Details) buildLabelsList(labels map[string]string) string {
 
 	var result strings.Builder
 	count := 0
-	maxLabels := 10 // Limita a exibição para não ficar muito longo
+	maxLabels := 10
 
 	for key, value := range labels {
 		if count >= maxLabels {

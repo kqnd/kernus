@@ -120,7 +120,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.10",
 			LastSeen: time.Now().Add(-2 * time.Minute),
-			Uptime:   Duration{Seconds: 86400 * 2}, // 2 dias
+			Uptime:   Duration{Seconds: 86400 * 2},
 			Processes: []Process{
 				{Name: "nginx", Address: "127.0.0.1", Port: 80},
 				{Name: "app", Address: "127.0.0.1", Port: 8080},
@@ -142,7 +142,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.11",
 			LastSeen: time.Now().Add(-10 * time.Second),
-			Uptime:   Duration{Seconds: 86400*5 + 3600*3}, // 5 dias 3h
+			Uptime:   Duration{Seconds: 86400*5 + 3600*3},
 			Processes: []Process{
 				{Name: "nginx", Address: "127.0.0.1", Port: 80},
 				{Name: "worker", Address: "127.0.0.1", Port: 9000},
@@ -164,7 +164,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.20",
 			LastSeen: time.Now().Add(-5 * time.Second),
-			Uptime:   Duration{Seconds: 86400 * 15}, // 15 dias
+			Uptime:   Duration{Seconds: 86400 * 15},
 			Processes: []Process{
 				{Name: "postgres", Address: "127.0.0.1", Port: 5432},
 			},
@@ -206,7 +206,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.30",
 			LastSeen: time.Now().Add(-1 * time.Minute),
-			Uptime:   Duration{Seconds: 3600 * 10}, // 10h
+			Uptime:   Duration{Seconds: 3600 * 10},
 			Processes: []Process{
 				{Name: "redis", Address: "127.0.0.1", Port: 6379},
 			},
@@ -248,7 +248,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.40",
 			LastSeen: time.Now().Add(-15 * time.Second),
-			Uptime:   Duration{Seconds: 3600 * 72}, // 3 dias
+			Uptime:   Duration{Seconds: 3600 * 72},
 			Processes: []Process{
 				{Name: "worker", Address: "127.0.0.1", Port: 9000},
 			},
@@ -269,7 +269,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.41",
 			LastSeen: time.Now().Add(-50 * time.Second),
-			Uptime:   Duration{Seconds: 3600 * 150}, // ~6 dias
+			Uptime:   Duration{Seconds: 3600 * 150},
 			Processes: []Process{
 				{Name: "worker", Address: "127.0.0.1", Port: 9000},
 			},
@@ -290,7 +290,7 @@ func MockMachines() []Machine {
 			},
 			IP:       "192.168.0.50",
 			LastSeen: time.Now(),
-			Uptime:   Duration{Seconds: 3600 * 240}, // 10 dias
+			Uptime:   Duration{Seconds: 3600 * 240},
 			Processes: []Process{
 				{Name: "prometheus", Address: "127.0.0.1", Port: 9090},
 				{Name: "grafana", Address: "127.0.0.1", Port: 3000},
