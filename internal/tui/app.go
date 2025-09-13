@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -102,7 +103,6 @@ func (a *App) startAutoRefresh() {
 }
 
 func (a *App) performRefresh(forceRefresh bool) {
-	// Salva a seleção atual antes do refresh
 	var selectedID string
 	if currentSelected := a.containers.GetSelectedContainer(); currentSelected != nil {
 		selectedID = currentSelected.ID
@@ -111,16 +111,14 @@ func (a *App) performRefresh(forceRefresh bool) {
 	containers, err := a.loadContainers()
 	if err != nil {
 		fmt.Printf("Error loading containers: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	a.tviewApp.QueueUpdateDraw(func() {
 		a.containers.UpdateContainersPreserveSelection(containers, selectedID)
 
 		if selected := a.containers.GetSelectedContainer(); selected != nil {
-			if forceRefresh && a.nundb != nil {
-				a.nundb.Set("last_selected", selected.ID)
-			}
+			a.nundb.Set("a", "b")
 			a.refreshContainerStats(selected)
 		}
 	})
@@ -132,7 +130,7 @@ func (a *App) initializeComponents() {
 	containers, err := a.loadContainers()
 	if err != nil {
 		fmt.Printf("Error loading containers, using mock data: %v\n", err)
-		containers = toPtrSlice(models.MockContainers())
+		os.Exit(1)
 	}
 
 	a.containers = components.NewContainerList(containers)
