@@ -70,6 +70,7 @@ func toPtrSlice(containers []models.Container) []*models.Container {
 func (a *App) initializeDocker() error {
 	var err error
 	a.docker, err = docker.NewClient(a.config.DockerHost)
+
 	if err != nil {
 		return fmt.Errorf("failed to connect to Docker daemon: %w", err)
 	}

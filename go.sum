@@ -61,6 +61,12 @@ github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3A
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/viewfromaside/nun-db-go v0.0.0-20250907193703-968923d37eaa h1:JO76OsiVUsNrzfSluyahnedR0ZZCgjscz2Gd1MYAU6w=
 github.com/viewfromaside/nun-db-go v0.0.0-20250907193703-968923d37eaa/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
+github.com/viewfromaside/nun-db-go v0.1.0 h1:w7WU+I0yvVj4fTYZlkYxLku76GDog7uyEeEMO6uPXO4=
+github.com/viewfromaside/nun-db-go v0.1.0/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
+github.com/viewfromaside/nun-db-go v0.1.1-0.20250913211213-805c053fe03a h1:wE0tLfW28dW7gnZkm+m8dGHWJVcWPkIyAIxEqvTTs2U=
+github.com/viewfromaside/nun-db-go v0.1.1-0.20250913211213-805c053fe03a/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
+github.com/viewfromaside/nun-db-go v0.1.1-0.20250914210002-7152ecfe8167 h1:f72JMAZ6PlewgkDk3zgy0mNHTBLe1GY8qxBU8ia/Iag=
+github.com/viewfromaside/nun-db-go v0.1.1-0.20250914210002-7152ecfe8167/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
