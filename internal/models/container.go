@@ -24,6 +24,7 @@ type Container struct {
 	Health        *ContainerHealth  `json:"health"`
 	RestartPolicy RestartPolicy     `json:"restart_policy"`
 	ExitCode      int               `json:"exit_code"`
+	Logs          []string          `json:"logs"`
 }
 
 type ContainerStats struct {
@@ -192,6 +193,21 @@ func (p Port) String() string {
 		return fmt.Sprintf("%s:%d->%d/%s", p.IP, p.PublicPort, p.PrivatePort, p.Type)
 	}
 	return fmt.Sprintf("%d/%s", p.PrivatePort, p.Type)
+}
+
+func (c *Container) GetRecentLogs(maxLines int) []string {
+	if len(c.Logs) <= maxLines {
+		return c.Logs
+	}
+	return c.Logs[len(c.Logs)-maxLines:]
+}
+
+func (c *Container) HasLogs() bool {
+	return len(c.Logs) > 0
+}
+
+func (c *Container) LogCount() int {
+	return len(c.Logs)
 }
 
 type Mount struct {

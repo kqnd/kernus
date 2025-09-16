@@ -22,6 +22,7 @@ type Details struct {
 	statsTab    *details.StatsTab
 	networkTab  *details.NetworkTab
 	storageTab  *details.StorageTab
+	logsTab     *details.LogsTab
 }
 
 const (
@@ -29,6 +30,7 @@ const (
 	TAB_STATS
 	TAB_NETWORK
 	TAB_STORAGE
+	TAB_LOGS
 )
 
 func NewDetails(docker *docker.Client) *Details {
@@ -39,7 +41,7 @@ func NewDetails(docker *docker.Client) *Details {
 			SetScrollable(true).
 			SetChangedFunc(func() {
 			}),
-		tabs:       []string{"Overview", "Stats", "Network", "Storage"},
+		tabs:       []string{"Overview", "Stats", "Network", "Storage", "Logs"},
 		currentTab: TAB_OVERVIEW,
 		docker:     docker,
 
@@ -47,6 +49,7 @@ func NewDetails(docker *docker.Client) *Details {
 		statsTab:    details.NewStatsTab(),
 		networkTab:  details.NewNetworkTab(),
 		storageTab:  details.NewStorageTab(),
+		logsTab:     details.NewLogsTab(),
 	}
 
 	d.view.SetBorder(true).SetTitle(" Container Details ")
@@ -66,7 +69,11 @@ func NewDetails(docker *docker.Client) *Details {
 		case 'r', 'R':
 			if d.currentContainer != nil {
 				go func() {
-					d.restartDocker()
+					if d.currentTab == TAB_LOGS {
+						d.refreshLogs()
+					} else {
+						d.restartDocker()
+					}
 				}()
 			}
 			return nil
@@ -85,6 +92,17 @@ func (d *Details) restartDocker() {
 	d.currentContainer.Status = models.StatusRestarting
 	d.docker.RestartContainer(d.currentContainer.ID)
 	d.updateView()
+}
+
+func (d *Details) refreshLogs() {
+	if d.currentContainer == nil {
+		return
+	}
+
+	if logs, err := d.docker.RefreshContainerLogs(d.currentContainer.ID, 100); err == nil {
+		d.currentContainer.Logs = logs
+		d.updateView()
+	}
 }
 
 func (d *Details) ShowContainer(container *models.Container) {
@@ -129,6 +147,8 @@ func (d *Details) updateView() {
 		content = d.buildTabHeader() + d.networkTab.Render(d.currentContainer)
 	case TAB_STORAGE:
 		content = d.buildTabHeader() + d.storageTab.Render(d.currentContainer)
+	case TAB_LOGS:
+		content = d.buildTabHeader() + d.logsTab.Render(d.currentContainer)
 	default:
 		content = d.buildTabHeader() + d.overviewTab.Render(d.currentContainer)
 	}

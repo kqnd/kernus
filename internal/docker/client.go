@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -144,7 +145,6 @@ func NewClient(host string) (*Client, error) {
 func (c *Client) Close() error {
 	return c.cli.Close()
 }
-
 func (c *Client) ListContainers(onlyRunning bool) ([]models.Container, error) {
 	options := container.ListOptions{
 		All: !onlyRunning,
@@ -163,6 +163,12 @@ func (c *Client) ListContainers(onlyRunning bool) ([]models.Container, error) {
 			if stats, err := c.GetContainerStats(container.ID); err == nil {
 				modelContainer.Stats = stats
 			}
+		}
+
+		if logs, err := c.GetContainerLogs(container.ID, 100); err == nil {
+			modelContainer.Logs = logs
+		} else {
+			modelContainer.Logs = make([]string, 0)
 		}
 
 		result = append(result, modelContainer)
@@ -221,8 +227,13 @@ func (c *Client) GetContainerLogs(containerID string, lines int) ([]string, erro
 	options := container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
-		Tail:       string(rune(lines)),
 		Timestamps: true,
+		Details:    false,
+	}
+
+	if lines > 0 {
+		tailStr := fmt.Sprintf("%d", lines)
+		options.Tail = tailStr
 	}
 
 	logs, err := c.cli.ContainerLogs(c.ctx, containerID, options)
@@ -231,24 +242,61 @@ func (c *Client) GetContainerLogs(containerID string, lines int) ([]string, erro
 	}
 	defer logs.Close()
 
-	logLines := make([]string, 0)
 	content, err := io.ReadAll(logs)
 	if err != nil {
 		return nil, err
 	}
 
-	lines_str := strings.Split(string(content), "\n")
-	for _, line := range lines_str {
-		if strings.TrimSpace(line) != "" {
-			if len(line) > 8 {
-				logLines = append(logLines, line[8:])
-			} else {
-				logLines = append(logLines, line)
+	return c.parseDockerLogs(content), nil
+}
+
+func (c *Client) parseDockerLogs(content []byte) []string {
+	logLines := make([]string, 0)
+
+	i := 0
+	for i < len(content) {
+		if i+8 > len(content) {
+			break
+		}
+
+		msgSize := int(content[i+4])<<24 | int(content[i+5])<<16 | int(content[i+6])<<8 | int(content[i+7])
+
+		if i+8+msgSize > len(content) {
+			break
+		}
+
+		message := string(content[i+8 : i+8+msgSize])
+
+		lines := strings.Split(strings.TrimRight(message, "\n\r"), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				logLines = append(logLines, trimmed)
+			}
+		}
+
+		i += 8 + msgSize
+	}
+
+	if len(logLines) == 0 {
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				if len(trimmed) > 8 && trimmed[0] < 32 {
+					logLines = append(logLines, trimmed[8:])
+				} else {
+					logLines = append(logLines, trimmed)
+				}
 			}
 		}
 	}
 
-	return logLines, nil
+	return logLines
+}
+
+func (c *Client) RefreshContainerLogs(containerID string, lines int) ([]string, error) {
+	return c.GetContainerLogs(containerID, lines)
 }
 
 func (c *Client) InspectContainer(containerID string) (*types.ContainerJSON, error) {
