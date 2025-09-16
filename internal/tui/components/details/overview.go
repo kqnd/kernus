@@ -101,11 +101,11 @@ func (o *OverviewTab) renderConfigSection(c *models.Container) string {
 
 func (o *OverviewTab) renderQuickStats(c *models.Container) string {
 	if c.Stats == nil {
-		return fmt.Sprintf(`[yellow]Quick Stats[white]
+		return `[yellow]Quick Stats[white]
 	CPU      : [gray]N/A (not running)[white]
 	Memory   : [gray]N/A (not running)[white]
 	Network  : [gray]N/A (not running)[white]
-	PIDs     : [gray]N/A (not running)[white]`)
+	PIDs     : [gray]N/A (not running)[white]`
 	}
 
 	cpuColor := o.formatter.GetUsageColor(c.Stats.CPU.Usage)
