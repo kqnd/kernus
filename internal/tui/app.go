@@ -42,7 +42,7 @@ type App struct {
 
 func NewApp(config *Config) *App {
 	if config.RefreshRate == 0 {
-		config.RefreshRate = 4 * time.Second
+		config.RefreshRate = 1 * time.Second
 	}
 	if config.MaxLogEntries == 0 {
 		config.MaxLogEntries = 1000
@@ -117,9 +117,9 @@ func (a *App) performRefresh(forceRefresh bool) {
 
 	a.tviewApp.QueueUpdateDraw(func() {
 		a.containers.UpdateContainersPreserveSelection(containers, selectedID)
+		a.nundb.Set("a", "b")
 
 		if selected := a.containers.GetSelectedContainer(); selected != nil {
-			a.nundb.Set("a", "b")
 			a.refreshContainerStats(selected)
 		}
 	})
