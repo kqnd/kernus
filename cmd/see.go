@@ -14,6 +14,7 @@ var seeCommand = &cobra.Command{
 	Short: "View machines monitoring interface",
 	Long:  "Launch the TUI interface to monitor machines on the specified server",
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Launching monitoring interface...")
 
 		ExitIfIsMissingFields()
 
