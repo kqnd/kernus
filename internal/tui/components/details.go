@@ -53,7 +53,7 @@ func NewDetails(docker *docker.Client) *Details {
 	}
 
 	d.view.SetBorder(true).SetTitle(" Container Details ")
-	d.view.SetText("[yellow]Select a container to view details[white]\n\n[gray]Use arrow keys to navigate between tabs[white]")
+	d.view.SetText(d.buildEmptyState())
 
 	d.view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {

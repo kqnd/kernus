@@ -266,7 +266,7 @@ func (cl *ContainerList) buildTitle() string {
 		}
 	}
 
-	return fmt.Sprintf("Containers (%d total)", len(cl.containers))
+	return fmt.Sprintf(" Containers (%d total) ", len(cl.containers))
 }
 
 func (cl *ContainerList) formatGroupText(group *ContainerGroup) string {

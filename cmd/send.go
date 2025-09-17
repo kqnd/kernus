@@ -19,7 +19,7 @@ var sendCommand = &cobra.Command{
 	Long:  "Send your machine to the monitoring server using the CLI options",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		ExitIfIsMissingFields()
+		// ExitIfIsMissingFields()
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()

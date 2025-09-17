@@ -16,15 +16,15 @@ var seeCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Launching monitoring interface...")
 
-		ExitIfIsMissingFields()
-
 		config := &tui.Config{
 			Server: "server",
 			Group:  group,
 		}
 
-		NUNDB_CLIENT.CreateDatabase("kern", "kern-pwd")
-		NUNDB_CLIENT.UseDatabase("kern", "kern-pwd")
+		if NUNDB_CLIENT != nil {
+			NUNDB_CLIENT.CreateDatabase("kern", "kern-pwd")
+			NUNDB_CLIENT.UseDatabase("kern", "kern-pwd")
+		}
 
 		app := tui.NewApp(config)
 		app.SetNunDBClient(NUNDB_CLIENT)

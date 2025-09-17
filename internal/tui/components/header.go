@@ -38,7 +38,7 @@ func (h *Header) setupView() {
 		SetTextAlign(tview.AlignCenter).
 		SetScrollable(false).
 		SetBorder(true).
-		SetTitle("Connection Info")
+		SetTitle(" Connection Info ")
 	h.updateContent()
 }
 

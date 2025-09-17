@@ -117,7 +117,10 @@ func (a *App) performRefresh(forceRefresh bool) {
 
 	a.tviewApp.QueueUpdateDraw(func() {
 		a.containers.UpdateContainersPreserveSelection(containers, selectedID)
-		a.nundb.Set("a", "b")
+
+		if a.nundb != nil {
+			a.nundb.Set("a", "b")
+		}
 
 		if selected := a.containers.GetSelectedContainer(); selected != nil {
 			a.refreshContainerStats(selected)
