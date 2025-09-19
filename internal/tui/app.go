@@ -103,7 +103,7 @@ func (a *App) startAutoRefresh() {
 	}()
 }
 
-func (a *App) performRefresh(forceRefresh bool) {
+func (a *App) performRefresh(_ bool) {
 	var selectedID string
 	if currentSelected := a.containers.GetSelectedContainer(); currentSelected != nil {
 		selectedID = currentSelected.ID
