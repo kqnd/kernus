@@ -40,6 +40,7 @@ type App struct {
 	focusables    []tview.Primitive
 }
 
+// comentario do new app
 func NewApp(config *Config) *App {
 	if config.RefreshRate == 0 {
 		config.RefreshRate = 1 * time.Second
