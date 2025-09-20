@@ -59,6 +59,7 @@ func NewApp(config *Config) *App {
 	return app
 }
 
+// isso aq transforma em um slice de ponteiros
 func toPtrSlice(containers []models.Container) []*models.Container {
 	out := make([]*models.Container, len(containers))
 	for i := range containers {
