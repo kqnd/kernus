@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 )
 
 type TableBuilder struct {

@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kern/internal/tui"
+	"github.com/kqnd/kernus/internal/tui"
 	"github.com/spf13/cobra"
 )
 

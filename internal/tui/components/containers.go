@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 	"github.com/rivo/tview"
 )
 

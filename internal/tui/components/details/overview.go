@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 )
 
 type OverviewTab struct {

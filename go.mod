@@ -1,4 +1,4 @@
-module github.com/kern
+module github.com/kqnd/kernus
 
 go 1.23.0
 

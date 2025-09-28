@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 	nundb "github.com/viewfromaside/nun-db-go"
 )
 

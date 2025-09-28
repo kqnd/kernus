@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 )
 
 type StatsTab struct {

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/kern/internal/models"
+	"github.com/kqnd/kernus/internal/models"
 )
 
 type Client struct {

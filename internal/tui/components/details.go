@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/kern/internal/docker"
-	"github.com/kern/internal/models"
-	"github.com/kern/internal/tui/components/details"
+	"github.com/kqnd/kernus/internal/docker"
+	"github.com/kqnd/kernus/internal/models"
+	"github.com/kqnd/kernus/internal/tui/components/details"
 	"github.com/rivo/tview"
 )
 
