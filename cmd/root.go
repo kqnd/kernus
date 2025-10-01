@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	nundb "github.com/kqnd/nun-db-go"
 	"github.com/spf13/cobra"
-	nundb "github.com/viewfromaside/nun-db-go"
 )
 
 var NUNDB_CLIENT *nundb.Client

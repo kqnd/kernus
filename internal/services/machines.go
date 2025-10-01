@@ -2,7 +2,7 @@ package services
 
 import (
 	"github.com/kqnd/kernus/internal/models"
-	nundb "github.com/viewfromaside/nun-db-go"
+	nundb "github.com/kqnd/nun-db-go"
 )
 
 type MachineService struct {

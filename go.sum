@@ -31,6 +31,8 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
+github.com/kqnd/nun-db-go v0.1.2 h1:TeeIsY2pcAY6GVIIWvMBa7h8wA4Kio6xu+d7MJd5Tz4=
+github.com/kqnd/nun-db-go v0.1.2/go.mod h1:40Rtin7abU7n7/+RaBnipqKScIlJyVMxKkCm+CNWpk8=
 github.com/lucasb-eyer/go-colorful v1.2.0 h1:1nnpGOrhyZZuNyfu1QjKiUICQ74+3FNCN69Aj6K7nkY=
 github.com/lucasb-eyer/go-colorful v1.2.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/lucasb-eyer/go-colorful v1.3.0 h1:2/yBRLdWBZKrf7gB40FoiKfAWYQ0lqNcbuQwVHXptag=
@@ -59,14 +61,6 @@ github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
 github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
-github.com/viewfromaside/nun-db-go v0.0.0-20250907193703-968923d37eaa h1:JO76OsiVUsNrzfSluyahnedR0ZZCgjscz2Gd1MYAU6w=
-github.com/viewfromaside/nun-db-go v0.0.0-20250907193703-968923d37eaa/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
-github.com/viewfromaside/nun-db-go v0.1.0 h1:w7WU+I0yvVj4fTYZlkYxLku76GDog7uyEeEMO6uPXO4=
-github.com/viewfromaside/nun-db-go v0.1.0/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
-github.com/viewfromaside/nun-db-go v0.1.1-0.20250913211213-805c053fe03a h1:wE0tLfW28dW7gnZkm+m8dGHWJVcWPkIyAIxEqvTTs2U=
-github.com/viewfromaside/nun-db-go v0.1.1-0.20250913211213-805c053fe03a/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
-github.com/viewfromaside/nun-db-go v0.1.1-0.20250914210002-7152ecfe8167 h1:f72JMAZ6PlewgkDk3zgy0mNHTBLe1GY8qxBU8ia/Iag=
-github.com/viewfromaside/nun-db-go v0.1.1-0.20250914210002-7152ecfe8167/go.mod h1:YnpRIOTTd6WeijANk6/ml8y5waD+kON1xw99ktNWQUc=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=

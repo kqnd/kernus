@@ -9,8 +9,8 @@ import (
 	"github.com/kqnd/kernus/internal/docker"
 	"github.com/kqnd/kernus/internal/models"
 	"github.com/kqnd/kernus/internal/tui/components"
+	nundb "github.com/kqnd/nun-db-go"
 	"github.com/rivo/tview"
-	nundb "github.com/viewfromaside/nun-db-go"
 )
 
 type Config struct {
