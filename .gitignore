@@ -1,0 +1,12 @@
+config.json
+session.json
+
+kernus
+kernus.exe
+
+dist/
+
+.vscode/
+.idea/
+*.swp
+.env
