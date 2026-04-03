@@ -67,16 +67,27 @@ var agentStartCmd = &cobra.Command{
 		serverCfg, fetchErr := sender.FetchConfig(ctx)
 		if fetchErr != nil {
 			fmt.Printf("⚠ Could not fetch server config: %v (using local interval %ds)\n", fetchErr, runtimeCfg.Interval)
-		} else if serverCfg.CollectionIntervalSeconds > 0 {
-			if runtimeCfg.Interval != serverCfg.CollectionIntervalSeconds {
-				fmt.Printf("→ Plan collection interval: %ds (was %ds)\n", serverCfg.CollectionIntervalSeconds, runtimeCfg.Interval)
+		} else {
+			if serverCfg.CollectionIntervalSeconds > 0 {
+				runtimeCfg.Interval = serverCfg.CollectionIntervalSeconds
 			}
-			runtimeCfg.Interval = serverCfg.CollectionIntervalSeconds
 		}
 
 		fmt.Printf("✓ Agent started. Collecting metrics every %ds.\n", runtimeCfg.Interval)
 		fmt.Printf("✓ Connected to %s\n", runtimeCfg.ServerURL)
 		fmt.Printf("✓ Host: %s\n", runtimeCfg.HostName)
+		if fetchErr == nil {
+			orgName := serverCfg.OrgName
+			if orgName == "" {
+				orgName = "(unknown)"
+			}
+			planName := serverCfg.PlanName
+			if planName == "" {
+				planName = "(unknown)"
+			}
+			fmt.Printf("✓ Org: %s\n", orgName)
+			fmt.Printf("✓ Plan: %s\n", planName)
+		}
 		if useMock {
 			fmt.Println("✓ Mock mode: using simulated containers with extreme behaviors")
 		}

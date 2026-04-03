@@ -32,7 +32,7 @@ type mockContainer struct {
 type mockBehavior int
 
 const (
-	behaviorCPUSpike      mockBehavior = iota
+	behaviorCPUSpike mockBehavior = iota
 	behaviorMemoryLeak
 	behaviorHealthFlap
 	behaviorRestartStorm
@@ -108,10 +108,11 @@ func (mc *MockCollector) updateCPUSpike(c *mockContainer) {
 	c.spikePhase++
 	c.status = "running"
 	c.health = "healthy"
-	if c.spikePhase%6 < 3 {
-		c.cpuPercent = float32(85 + rand.Intn(16))
+	// 5 out of 6 cycles at spike level — very unlikely to miss
+	if c.spikePhase%6 < 5 {
+		c.cpuPercent = float32(88 + rand.Intn(13)) // 88–100%
 	} else {
-		c.cpuPercent = float32(rand.Intn(5))
+		c.cpuPercent = float32(2 + rand.Intn(8)) // brief dip
 	}
 	c.memoryUsed = 128*1024*1024 + uint64(rand.Int63n(64*1024*1024))
 }
@@ -121,7 +122,7 @@ func (mc *MockCollector) updateMemoryLeak(c *mockContainer) {
 	c.health = "healthy"
 	c.cpuPercent = float32(10 + rand.Intn(15))
 
-	growth := uint64(20+rand.Intn(60)) * 1024 * 1024
+	growth := uint64(80+rand.Intn(120)) * 1024 * 1024
 	c.memoryUsed += growth
 
 	if c.memoryUsed > c.memoryLimit*95/100 {
@@ -227,18 +228,20 @@ func (mc *MockCollector) updateStatusChaos(c *mockContainer) {
 
 func (mc *MockCollector) updateGradualRampUp(c *mockContainer) {
 	c.status = "running"
-	c.health = "healthy"
 	c.spikePhase++
 
-	progress := float32(c.spikePhase%60) / 60.0
-	c.cpuPercent = progress*95 + float32(rand.Intn(5))
+	// Ramps up to 100% in 20 cycles then resets — visible in ~20s
+	progress := float32(c.spikePhase%20) / 20.0
+	c.cpuPercent = 30 + progress*70 + float32(rand.Intn(5)) // starts at 30%, peaks at 100%
 	if c.cpuPercent > 100 {
 		c.cpuPercent = 100
 	}
-	c.memoryUsed = uint64(float64(c.memoryLimit) * float64(progress) * 0.9)
+	c.memoryUsed = uint64(float64(c.memoryLimit) * (0.4 + float64(progress)*0.55))
 
-	if progress > 0.95 {
+	if progress > 0.7 {
 		c.health = "unhealthy"
+	} else {
+		c.health = "healthy"
 	}
 }
 

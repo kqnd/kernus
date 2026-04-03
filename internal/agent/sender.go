@@ -17,9 +17,11 @@ type SendResult struct {
 }
 
 type ServerConfig struct {
-	CollectionIntervalSeconds int `json:"collection_interval_seconds"`
-	MaxContainers             int `json:"max_containers"`
-	RetentionDays             int `json:"retention_days"`
+	CollectionIntervalSeconds int    `json:"collection_interval_seconds"`
+	MaxContainers             int    `json:"max_containers"`
+	RetentionDays             int    `json:"retention_days"`
+	OrgName                   string `json:"org_name"`
+	PlanName                  string `json:"plan_name"`
 }
 
 type Sender struct {
