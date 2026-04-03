@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Kernus</h1>
+  <h1 align="center">Kernus Agent</h1>
   <p align="center">A lightweight, terminal-native infrastructure monitoring agent written in Go.</p>
 </p>
 
@@ -18,19 +18,45 @@ Kernus is a command-line tool that sits on your servers and quietly watches over
 
 It also ships with an interactive **TUI** (terminal user interface) so you can inspect containers, read logs, and manage workloads without ever leaving the terminal.
 
+## How It Works
+
+```
+  Your Server                          Kernus Cloud
+  ─────────────────────────────        ─────────────────────────
+  │                           │        │                       │
+  │  Docker daemon            │        │  API Server           │
+  │    └─ containers ─┐       │        │    └─ ingest/metrics  │
+  │                   ▼       │        │    └─ alerts engine   │
+  │  kernus agent ────────────┼──────▶ │    └─ notification    │
+  │    └─ host metrics        │  HTTPS │                       │
+  │    └─ container stats     │        │  Dashboard            │
+  │    └─ health checks       │        │    └─ real-time view  │
+  │                           │        │    └─ alert rules     │
+  └───────────────────────────┘        └───────────────────────┘
+```
+
+The agent runs as a **background process** and pushes metrics on a configurable interval. No inbound ports required — the server never needs to reach back into your infrastructure.
+
 ## Quick Start
 
 ```bash
-# Install
-go install github.com/kiev/kernus@latest
+# Install (Linux / macOS)
+curl -sSL https://kernus.app/install | sh
 
+# Windows (PowerShell)
+irm https://kernus.app/install.ps1 | iex
+```
+
+Then connect it to your account:
+
+```bash
 # Authenticate
 kernus login
 
 # Create an agent token for this host
 kernus token create "prod-server-01"
 
-# Configure the token locally
+# Save the token and point it to the API
 kernus token kn_live_a1b2c3... --server https://api.kernus.app --host prod-server-01
 
 # Start collecting
@@ -177,6 +203,41 @@ The server URL is resolved in the following order of priority:
 
 ## Architecture
 
+### Agent (this repo)
+
+```
+  CLI Entry Points
+  ─────────────────────────────────────────────────────────────────
+  kernus login      kernus agent start    kernus see    kernus token
+       │                   │                   │              │
+       ▼                   ▼                   ▼              ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │                     cmd/  (Cobra)                           │
+  │  login.go  agent.go  see.go  token.go  send.go  config.go  │
+  └──────┬──────────┬──────────┬───────────────────────────────┘
+         │          │          │
+         ▼          ▼          ▼
+  ┌──────────┐ ┌─────────────────────┐ ┌──────────────────────┐
+  │  auth/   │ │     agent/          │ │       tui/           │
+  │  client  │ │  collector.go  ─────┼─┤  app.go              │
+  │  session │ │  sender.go     ─────┼─┤  login_app.go        │
+  │  jwt     │ │  types.go           │ │  components/         │
+  └──────────┘ │  mock_collector.go  │ └──────────────────────┘
+               └──────┬──────────────┘
+                      │
+            ┌─────────┴──────────┐
+            ▼                    ▼
+  ┌──────────────────┐  ┌─────────────────┐
+  │   docker/        │  │   metrics/      │
+  │  client.go       │  │  collector.go   │
+  │  (Docker SDK)    │  │  unix / windows │
+  │  mock.go         │  └─────────────────┘
+  └──────────────────┘
+
+  config/  ──  config.go · agent.go · server.go  (layered resolution)
+  models/  ──  container · machine · user
+```
+
 ```
 kernus/
 ├── main.go                     # Entry point
@@ -232,7 +293,7 @@ kernus/
 ## Building from Source
 
 ```bash
-git clone https://github.com/kiev/kernus.git
+git clone https://github.com/kqnd/kernus.git
 cd kernus
 
 # Build
