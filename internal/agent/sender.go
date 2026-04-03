@@ -81,9 +81,11 @@ func (s *Sender) FetchConfig(ctx context.Context) (*ServerConfig, error) {
 		return nil, fmt.Errorf("config endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	var cfg ServerConfig
-	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
+	var envelope struct {
+		Data ServerConfig `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		return nil, fmt.Errorf("cannot decode config response: %w", err)
 	}
-	return &cfg, nil
+	return &envelope.Data, nil
 }
