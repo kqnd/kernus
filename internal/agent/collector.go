@@ -40,7 +40,14 @@ func NewCollector(dockerHost string) (*Collector, error) {
 		return nil, fmt.Errorf("cannot connect to Docker daemon: %w", err)
 	}
 
-	return &Collector{cli: cli, hostMemoryTotal: readHostMemoryTotal()}, nil
+	var hostMemTotal uint64
+	if info, err := cli.Info(ctx); err == nil && info.MemTotal > 0 {
+		hostMemTotal = uint64(info.MemTotal)
+	} else {
+		hostMemTotal = readHostMemoryTotal()
+	}
+
+	return &Collector{cli: cli, hostMemoryTotal: hostMemTotal}, nil
 }
 
 func (c *Collector) Close() error {
@@ -48,6 +55,14 @@ func (c *Collector) Close() error {
 		return nil
 	}
 	return c.cli.Close()
+}
+
+func (c *Collector) CountContainers(ctx context.Context) (int, error) {
+	containers, err := c.cli.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return 0, fmt.Errorf("cannot list containers: %w", err)
+	}
+	return len(containers), nil
 }
 
 func (c *Collector) Collect(ctx context.Context) ([]ContainerMetric, error) {

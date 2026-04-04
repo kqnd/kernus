@@ -24,6 +24,20 @@ type ServerConfig struct {
 	PlanName                  string `json:"plan_name"`
 }
 
+type PreflightRequest struct {
+	HostName       string `json:"host_name"`
+	ContainerCount int    `json:"container_count"`
+}
+
+type PreflightResponse struct {
+	CanProceed        bool   `json:"can_proceed"`
+	Reason            string `json:"reason,omitempty"`
+	CurrentContainers int    `json:"current_containers"`
+	MaxContainers     int    `json:"max_containers"`
+	CurrentHosts      int    `json:"current_hosts"`
+	MaxHosts          int    `json:"max_hosts"`
+}
+
 type Sender struct {
 	serverURL string
 	token     string
@@ -86,6 +100,39 @@ func (s *Sender) FetchConfig(ctx context.Context) (*ServerConfig, error) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		return nil, fmt.Errorf("cannot decode config response: %w", err)
+	}
+	return &envelope.Data, nil
+}
+
+func (s *Sender) Preflight(ctx context.Context, hostName string, containerCount int) (*PreflightResponse, error) {
+	body, err := json.Marshal(PreflightRequest{HostName: hostName, ContainerCount: containerCount})
+	if err != nil {
+		return nil, fmt.Errorf("cannot encode preflight payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.serverURL+"/v1/agent/preflight", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create preflight request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("preflight endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+
+	var envelope struct {
+		Data PreflightResponse `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		return nil, fmt.Errorf("cannot decode preflight response: %w", err)
 	}
 	return &envelope.Data, nil
 }

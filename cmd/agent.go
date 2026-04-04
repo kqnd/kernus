@@ -92,6 +92,30 @@ var agentStartCmd = &cobra.Command{
 			fmt.Println("✓ Mock mode: using simulated containers with extreme behaviors")
 		}
 
+		if !useMock && fetchErr == nil {
+			pfCollector, pfErr := agent.NewCollector(dockerHost)
+			if pfErr == nil {
+				localCount, _ := pfCollector.CountContainers(ctx)
+				pfCollector.Close()
+
+				pf, pfErr := sender.Preflight(ctx, runtimeCfg.HostName, localCount)
+				if pfErr == nil && !pf.CanProceed {
+					maxC := fmt.Sprintf("%d", pf.MaxContainers)
+					if pf.MaxContainers == -1 {
+						maxC = "unlimited"
+					}
+					maxH := fmt.Sprintf("%d", pf.MaxHosts)
+					if pf.MaxHosts == -1 {
+						maxH = "unlimited"
+					}
+					fmt.Printf("✗ Cannot start monitoring: %s\n", pf.Reason)
+					fmt.Printf("  Containers: %d/%s  |  Hosts: %d/%s\n",
+						pf.CurrentContainers, maxC, pf.CurrentHosts, maxH)
+					return nil
+				}
+			}
+		}
+
 		for ctx.Err() == nil {
 			err := runAgentLoop(ctx, stop, runtimeCfg, dockerHost, sender, useMock)
 			if err != nil {
