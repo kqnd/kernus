@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/kiev/kernus/internal/models"
@@ -39,8 +40,17 @@ func (m *MockClient) Logout(ctx context.Context, token string) error {
 }
 
 func (m *MockClient) GetProfile(ctx context.Context, token string) (*models.User, error) {
-	u := models.MockUser()
-	return &u, nil
+	name := strings.TrimPrefix(token, "mock-token-")
+	if name == token {
+		name = "user"
+	}
+	return &models.User{
+		ID:       "user-001",
+		Username: name,
+		Email:    name + "@example.local",
+		Role:     models.RoleViewer,
+		Groups:   []string{},
+	}, nil
 }
 
 func (m *MockClient) ValidateToken(ctx context.Context, token string) (bool, error) {

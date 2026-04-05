@@ -36,7 +36,7 @@ func NewContainerList() *ContainerList {
 	cl.View.SetTitle(" Containers ")
 	cl.View.SetHighlightFullLine(true)
 	cl.View.ShowSecondaryText(false)
-	cl.View.SetSelectedBackgroundColor(tcell.ColorDarkBlue)
+	cl.View.SetSelectedBackgroundColor(ColorZinc800)
 
 	cl.View.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(cl.items) {
@@ -128,8 +128,22 @@ func (cl *ContainerList) UpdateContainersPreserveSelection(containers []*models.
 		for i, item := range cl.items {
 			if !item.isGroup && item.container != nil && item.container.ID == selectedID {
 				cl.View.SetCurrentItem(i)
+				if cl.selectedFunc != nil {
+					cl.selectedFunc(item.container)
+				}
 				return
 			}
+		}
+	}
+
+	// Se nenhum foi encontrado/restaurado, seleciona o primeiro container
+	for i, item := range cl.items {
+		if !item.isGroup && item.container != nil {
+			cl.View.SetCurrentItem(i)
+			if cl.selectedFunc != nil {
+				cl.selectedFunc(item.container)
+			}
+			break
 		}
 	}
 }
@@ -198,12 +212,12 @@ func (cl *ContainerList) rebuildList() {
 		}
 
 		expanded := cl.expanded[groupName]
-		folderIcon := "📁"
+		folderIcon := "[gray]▸[white]"
 		if expanded {
-			folderIcon = "📂"
+			folderIcon = "[gray]▾[white]"
 		}
 
-		groupText := fmt.Sprintf("%s [yellow]%s[white] (%d)  %d running", folderIcon, groupName, len(members), runCount)
+		groupText := fmt.Sprintf("%s [::b]%s[-:-:-] [gray](%d)[white]  %d running", folderIcon, groupName, len(members), runCount)
 		cl.View.AddItem(groupText, "", 0, nil)
 		cl.items = append(cl.items, listItem{isGroup: true, groupName: groupName})
 

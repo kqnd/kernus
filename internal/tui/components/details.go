@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/kiev/kernus/internal/models"
@@ -151,8 +152,8 @@ func (d *Details) renderMachineContent(b *strings.Builder) {
 func (d *Details) renderMachineOverview(b *strings.Builder) {
 	m := d.machine
 
-	b.WriteString("\n  [yellow::b]Machine Information[white:-:-]\n\n")
-	b.WriteString("  [yellow]Identity[white]\n")
+	b.WriteString("\n  [white::b]Machine Information[white:-:-]\n\n")
+	b.WriteString("  [gray]Identity[white]\n")
 	fmt.Fprintf(b, "    Name     : %s\n", m.Name)
 	fmt.Fprintf(b, "    IP       : %s\n", m.IP)
 	fmt.Fprintf(b, "    Group    : %s\n", m.Group)
@@ -167,7 +168,7 @@ func (d *Details) renderMachineOverview(b *strings.Builder) {
 	}
 	fmt.Fprintf(b, "    Status   : [%s]%s %s[white]\n", statusColor, icon, m.Status)
 
-	b.WriteString("\n  [yellow]Resources[white]\n")
+	b.WriteString("\n  [gray]Resources[white]\n")
 	fmt.Fprintf(b, "    CPU      : %s %.1f%%\n", details.BuildBar(m.CPUUsage, 30), m.CPUUsage)
 	memPct := m.MemoryUsage.Percentage()
 	fmt.Fprintf(b, "    Memory   : %s %.1f%%\n", details.BuildBar(memPct, 30), memPct)
@@ -180,7 +181,7 @@ func (d *Details) renderMachineOverview(b *strings.Builder) {
 	fmt.Fprintf(b, "  Uptime     : %s\n", m.Uptime.String())
 
 	if m.Status != models.MachineOnline {
-		ago := formatTimeSince(m.LastSeen.Sub(m.LastSeen))
+		ago := formatTimeSince(time.Since(m.LastSeen))
 		fmt.Fprintf(b, "  Last Seen  : %s ago\n", ago)
 	} else {
 		fmt.Fprintf(b, "  Last Seen  : just now\n")
@@ -190,15 +191,15 @@ func (d *Details) renderMachineOverview(b *strings.Builder) {
 func (d *Details) renderMachineResources(b *strings.Builder) {
 	m := d.machine
 
-	b.WriteString("\n  [yellow::b]CPU Usage[white:-:-]\n")
+	b.WriteString("\n  [white::b]CPU Usage[white:-:-]\n")
 	fmt.Fprintf(b, "    %s %.1f%%\n", details.BuildBar(m.CPUUsage, 40), m.CPUUsage)
 
-	b.WriteString("\n  [yellow::b]Memory Usage[white:-:-]\n")
+	b.WriteString("\n  [white::b]Memory Usage[white:-:-]\n")
 	memPct := m.MemoryUsage.Percentage()
 	fmt.Fprintf(b, "    Total: %s %.1f%%\n", details.BuildBar(memPct, 40), memPct)
 	fmt.Fprintf(b, "    %s\n", m.MemoryUsage.String())
 
-	b.WriteString("\n  [yellow::b]Disk Usage[white:-:-]\n")
+	b.WriteString("\n  [white::b]Disk Usage[white:-:-]\n")
 	diskPct := m.DiskUsage.Percentage()
 	fmt.Fprintf(b, "    Total: %s %.1f%%\n", details.BuildBar(diskPct, 40), diskPct)
 	fmt.Fprintf(b, "    %s\n", m.DiskUsage.String())
@@ -207,7 +208,7 @@ func (d *Details) renderMachineResources(b *strings.Builder) {
 func (d *Details) renderMachineProcesses(b *strings.Builder) {
 	m := d.machine
 
-	b.WriteString("\n  [yellow::b]Listening Processes[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Listening Processes[white:-:-]\n\n")
 
 	if len(m.Processes) == 0 {
 		b.WriteString("  [gray]No processes information available[white]\n")

@@ -11,14 +11,16 @@ import (
 
 type ProfilePanel struct {
 	Modal    *tview.Flex
+	content  *tview.TextView
+	session  *models.Session
 	OnClose  func()
 	OnLogout func()
 }
 
 func NewProfilePanel(user *models.User, session *models.Session) *ProfilePanel {
-	pp := &ProfilePanel{}
+	pp := &ProfilePanel{session: session}
 
-	content := tview.NewTextView().
+	pp.content = tview.NewTextView().
 		SetDynamicColors(true).
 		SetText(pp.buildContent(user, session))
 
@@ -39,9 +41,9 @@ func NewProfilePanel(user *models.User, session *models.Session) *ProfilePanel {
 	buttons.SetBorderPadding(0, 0, 0, 0)
 
 	inner := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(content, 0, 1, false).
+		AddItem(pp.content, 0, 1, false).
 		AddItem(buttons, 1, 0, true)
-	inner.SetBorder(true).SetTitle(" User Profile ").SetTitleAlign(tview.AlignCenter)
+	inner.SetBorder(true).SetTitle(" Profile ").SetTitleAlign(tview.AlignCenter)
 
 	pp.Modal = tview.NewFlex().
 		AddItem(nil, 0, 1, false).
@@ -55,24 +57,36 @@ func NewProfilePanel(user *models.User, session *models.Session) *ProfilePanel {
 	return pp
 }
 
+// SetUser refreshes the profile body (e.g. after API load).
+func (pp *ProfilePanel) SetUser(user *models.User) {
+	if pp.content == nil || user == nil {
+		return
+	}
+	pp.content.SetText(pp.buildContent(user, pp.session))
+}
+
 func (pp *ProfilePanel) buildContent(user *models.User, session *models.Session) string {
 	var b strings.Builder
 
-	roleColor := "gray"
-	switch user.Role {
-	case models.RoleAdmin:
-		roleColor = "green"
-	case models.RoleOperator:
-		roleColor = "yellow"
+	roleStr := string(user.Role)
+	if roleStr == "" {
+		roleStr = "—"
 	}
 
-	fmt.Fprintf(&b, "\n  [yellow]Username[white] : %s\n", user.Username)
-	fmt.Fprintf(&b, "  [yellow]Email[white]    : %s\n", user.Email)
-	fmt.Fprintf(&b, "  [yellow]Role[white]     : [%s]%s[white]\n", roleColor, user.Role)
-	fmt.Fprintf(&b, "  [yellow]Groups[white]   : %s\n", strings.Join(user.Groups, ", "))
-	fmt.Fprintf(&b, "\n  [yellow]Current Session:[white]\n")
+	groups := "—"
+	if len(user.Groups) > 0 {
+		groups = strings.Join(user.Groups, ", ")
+	}
+
+	fmt.Fprintf(&b, "\n  [gray]Username[white] : %s\n", user.Username)
+	fmt.Fprintf(&b, "  [gray]Email[white]    : %s\n", user.Email)
+	fmt.Fprintf(&b, "  [gray]Role[white]     : %s\n", roleStr)
+	if len(user.Groups) > 0 {
+		fmt.Fprintf(&b, "  [gray]Groups[white]   : %s\n", groups)
+	}
+	fmt.Fprintf(&b, "\n  [white::b]Session[-:-:-]\n")
 	if session != nil {
-		fmt.Fprintf(&b, "  Expires at : %s\n", session.FormatExpiry())
+		fmt.Fprintf(&b, "  [gray]Expires[white]  : %s\n", session.FormatExpiry())
 	}
 
 	return b.String()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/kiev/kernus/internal/auth"
 	"github.com/kiev/kernus/internal/docker"
 	"github.com/kiev/kernus/internal/models"
 	"github.com/kiev/kernus/internal/tui/components"
@@ -63,6 +64,8 @@ func Run(cfg Config) error {
 }
 
 func (a *App) run() error {
+	ApplyZincTheme()
+
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	defer a.cancel()
 
@@ -79,6 +82,7 @@ func (a *App) run() error {
 	a.initializeComponents()
 	a.setupLayout()
 	a.setupKeyBindings()
+	a.syncFocusLabel()
 	a.startAutoRefresh(a.ctx)
 
 	go func() {
@@ -126,11 +130,13 @@ func (a *App) initializeComponents() {
 	if a.config.ShowMachines {
 		a.machineList = components.NewMachineList()
 		a.machineList.SetSelectedFunc(func(m *models.Machine) {
+			a.statusBar.SetHasSelected(true)
 			a.details.UpdateMachine(m)
 		})
 	} else {
 		a.containerList = components.NewContainerList()
 		a.containerList.SetSelectedFunc(func(c *models.Container) {
+			a.statusBar.SetHasSelected(true)
 			a.details.UpdateContainer(c)
 		})
 	}
@@ -240,9 +246,6 @@ func (a *App) setupKeyBindings() {
 		case '?':
 			a.showHelp()
 			return nil
-		case 'o':
-			a.showOnboarding()
-			return nil
 		}
 
 		return event
@@ -260,6 +263,24 @@ func (a *App) toggleFocus() {
 	} else {
 		a.tviewApp.SetFocus(a.details.View)
 	}
+	a.syncFocusLabel()
+}
+
+func (a *App) syncFocusLabel() {
+	if a.statusBar == nil {
+		return
+	}
+	var pane string
+	if a.focusLeft {
+		if a.config.ShowMachines {
+			pane = "Machines"
+		} else {
+			pane = "Containers"
+		}
+	} else {
+		pane = "Details"
+	}
+	a.statusBar.SetFocusPane(pane)
 }
 
 func (a *App) containerAction(action func(ctx context.Context, id string) error) {
@@ -316,12 +337,13 @@ func (a *App) showProfile() {
 		return
 	}
 
-	user := models.MockUser()
-	user.Username = a.config.Session.Username
+	stored, _ := auth.LoadSession()
+	baseUser := auth.UserFromStoredSession(a.config.Session, stored)
 
-	panel := components.NewProfilePanel(&user, a.config.Session)
+	panel := components.NewProfilePanel(&baseUser, a.config.Session)
 	panel.OnClose = func() {
 		a.tviewApp.SetRoot(a.grid, true)
+		a.syncFocusLabel()
 	}
 	panel.OnLogout = func() {
 		a.tviewApp.QueueUpdateDraw(func() {
@@ -334,35 +356,53 @@ func (a *App) showProfile() {
 		AddPage("profile", panel.Modal, true, true)
 
 	a.tviewApp.SetRoot(pages, true)
+
+	go func() {
+		ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+		defer cancel()
+		client := auth.NewDefaultClient()
+		u, err := client.GetProfile(ctx, a.config.Session.Token)
+		if err != nil || u == nil {
+			return
+		}
+		a.tviewApp.QueueUpdateDraw(func() {
+			panel.SetUser(u)
+		})
+	}()
 }
 
 func (a *App) showHelp() {
-	helpText := `[yellow]Keyboard Shortcuts[white]
+	helpText := `[white::b]KEYBOARD SHORTCUTS[-:-:-]
 
-[yellow]Navigation[white]
-  Tab        Toggle focus between panels
-  1-5 / F1-F5  Switch detail tabs
-  ↑/↓        Navigate list
-  ←/→        Collapse/Expand groups
+[gray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-:-:-]
 
-[yellow]Container Actions[white]
-  s          Start container
-  t          Stop container
-  p          Pause container
-  u          Unpause container
-  d          Remove container
+[white::b]NAVIGATION[-:-:-]
+  [gray]Tab[-]       Switch focus between panels
+  [gray]1-5[-]       Switch detail tabs
+  [gray]↑  ↓[-]      Move up / down in list
+  [gray]←  →[-]      Collapse / expand groups
 
-[yellow]General[white]
-  r          Force refresh
-  i          User profile
-  ?          This help
-  q / Esc    Quit`
+[gray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-:-:-]
+
+[white::b]CONTAINER ACTIONS[-:-:-]
+  [gray]s[-]  Start       [gray]t[-]  Stop
+  [gray]p[-]  Pause       [gray]u[-]  Unpause
+  [gray]d[-]  Remove
+
+[gray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-:-:-]
+
+[white::b]GENERAL[-:-:-]
+  [gray]r[-]  Refresh     [gray]i[-]  Profile
+  [gray]?[-]  This help   [gray]q[-]  Quit
+
+[gray]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[-:-:-]`
 
 	modal := tview.NewModal().
 		SetText(helpText).
 		AddButtons([]string{"Close"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.tviewApp.SetRoot(a.grid, true)
+			a.syncFocusLabel()
 		})
 
 	pages := tview.NewPages().
@@ -425,22 +465,17 @@ func (a *App) performRefresh(ctx context.Context) {
 		a.containerList.UpdateContainersPreserveSelection(ptrs, selectedID)
 
 		if len(containers) == 0 {
-			a.details.SetOnboardingMessage(`  [yellow::b]Nenhum servidor conectado ainda[white:-:-]
+			a.details.SetOnboardingMessage(`  [white::b]No containers reported yet[white:-:-]
 
-  Para comecar a monitorar seus containers:
+  When the agent is running on a host with Docker, containers appear here.
 
-  1. [white::b]Crie um Agent Token:[-:-:-]
-     kernus token create "prod-server-01"
-
-  2. [white::b]Configure o token neste host:[-:-:-]
-     kernus token kn_live_xxx --server https://api.kernus.app --host prod-server-01
-
-  3. [white::b]Inicie o agente:[-:-:-]
-     kernus agent start
-
-  [gray]Dica: pressione 'o' para ver esse guia novamente.[white]`)
+  1. [gray]Create an agent token (dashboard or CLI)[white]
+  2. [gray]Configure this host with[white] kernus token …
+  3. [gray]Run[white] kernus agent start [gray]on the server[white]`)
+			a.statusBar.SetHasSelected(false)
 		} else {
 			a.details.SetOnboardingMessage("")
+			a.statusBar.SetHasSelected(true)
 		}
 
 		selected := a.containerList.GetSelectedContainer()
@@ -448,34 +483,6 @@ func (a *App) performRefresh(ctx context.Context) {
 			a.details.UpdateContainer(selected)
 		}
 	})
-}
-
-func (a *App) showOnboarding() {
-	onboarding := `[yellow]Onboarding Kernus[white]
-
-1) Gere um token da organizacao:
-   kernus token create "prod-server-01"
-
-2) Configure no servidor alvo:
-   kernus token kn_live_xxx --server https://api.kernus.io --host prod-server-01
-
-3) Inicie o agente:
-   kernus agent start
-
-Assim que as metricas chegarem, o painel sai do estado vazio automaticamente.`
-
-	modal := tview.NewModal().
-		SetText(onboarding).
-		AddButtons([]string{"Close"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			a.tviewApp.SetRoot(a.grid, true)
-		})
-
-	pages := tview.NewPages().
-		AddPage("main", a.grid, true, true).
-		AddPage("onboarding", modal, true, true)
-
-	a.tviewApp.SetRoot(pages, true)
 }
 
 func (a *App) refreshMachines() {
@@ -501,6 +508,7 @@ func (a *App) refreshMachines() {
 			ptrs[i] = &machines[i]
 		}
 		a.machineList.UpdateMachines(ptrs)
+		a.statusBar.SetHasSelected(len(machines) > 0)
 
 		selected := a.machineList.GetSelectedMachine()
 		if selected != nil {

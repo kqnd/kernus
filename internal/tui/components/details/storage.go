@@ -7,7 +7,7 @@ import (
 )
 
 func RenderStorage(b *strings.Builder, c *models.Container) {
-	b.WriteString("\n  [yellow::b]Mounts[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Mounts[white:-:-]\n\n")
 
 	if len(c.Mounts) > 0 {
 		tb := NewTableBuilder("Source", "Destination", "Type", "Mode")
@@ -31,7 +31,7 @@ func RenderStorage(b *strings.Builder, c *models.Container) {
 		b.WriteString("  [gray]No mounts[white]\n")
 	}
 
-	b.WriteString("\n  [yellow::b]Block I/O Stats[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Block I/O Stats[white:-:-]\n\n")
 
 	if c.Stats != nil {
 		bio := c.Stats.BlockIO

@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"context"
@@ -12,6 +12,8 @@ import (
 )
 
 func RunLoginApp() error {
+	ApplyZincTheme()
+
 	app := tview.NewApplication()
 	var session *models.Session
 	var loginErr error
@@ -43,7 +45,7 @@ func RunLoginApp() error {
 
 		if username == "" || password == "" {
 			app.QueueUpdateDraw(func() {
-				errorText.SetText("[red]âœ— Username and password are required[white]")
+				errorText.SetText("[gray]Username and password are required[white]")
 			})
 			return
 		}
@@ -52,7 +54,7 @@ func RunLoginApp() error {
 		s, err := client.Login(context.TODO(), username, password)
 		if err != nil {
 			app.QueueUpdateDraw(func() {
-				errorText.SetText(fmt.Sprintf("[red]âœ— %v[white]", err))
+				errorText.SetText(fmt.Sprintf("[gray]%v[white]", err))
 			})
 			return
 		}
@@ -60,6 +62,7 @@ func RunLoginApp() error {
 		err = auth.SaveSession(&auth.StoredSession{
 			Token:     s.Token,
 			Username:  s.Username,
+			Email:     s.Username,
 			UserID:    s.UserID,
 			ExpiresAt: s.ExpiresAt,
 		})

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -27,7 +26,7 @@ func NewHeader(username, role string, app *tview.Application) *Header {
 		done:     make(chan struct{}),
 	}
 
-	h.View.SetBackgroundColor(tcell.ColorDarkBlue)
+	h.View.SetBackgroundColor(ColorZinc900)
 	h.render()
 	h.startClock()
 	return h
@@ -58,16 +57,16 @@ func (h *Header) Stop() {
 }
 
 func (h *Header) render() {
-	connIcon := "[red]● Disconnected[white]"
+	connIcon := "[gray]○ disconnected[white]"
 	if h.connected {
-		connIcon = "[green]● Connected[white]"
+		connIcon = "[white]● connected[white]"
 	}
 
 	userInfo := ""
 	if h.username != "" {
 		userInfo = fmt.Sprintf(" [white]%s", h.username)
 		if h.role != "" {
-			userInfo += fmt.Sprintf(" [yellow][%s][white]", h.role)
+			userInfo += fmt.Sprintf(" [gray][%s][white]", h.role)
 		}
 	}
 
@@ -77,7 +76,7 @@ func (h *Header) render() {
 		userInfo, timeStr, connIcon)
 
 	if h.sessionWarning != "" {
-		text += fmt.Sprintf(" | [yellow]⚠ %s[white]", h.sessionWarning)
+		text += fmt.Sprintf(" | [gray]⚠ %s[white]", h.sessionWarning)
 	}
 
 	h.View.SetText(text)

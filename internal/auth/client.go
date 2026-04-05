@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -53,8 +54,17 @@ func (c *LocalClient) Logout(ctx context.Context, token string) error {
 }
 
 func (c *LocalClient) GetProfile(ctx context.Context, token string) (*models.User, error) {
-	u := models.MockUser()
-	return &u, nil
+	if strings.HasPrefix(token, "local-") {
+		name := strings.TrimPrefix(token, "local-")
+		return &models.User{
+			ID:       "local",
+			Username: name,
+			Email:    name,
+			Role:     models.RoleAdmin,
+			Groups:   []string{},
+		}, nil
+	}
+	return nil, fmt.Errorf("local profile unavailable for this token")
 }
 
 func (c *LocalClient) ValidateToken(ctx context.Context, token string) (bool, error) {

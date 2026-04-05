@@ -49,25 +49,26 @@ func (lf *LoginForm) doLogin() {
 	password := passwordItem.(*tview.InputField).GetText()
 
 	if username == "" || password == "" {
-		lf.ErrorText.SetText("[red]✗ Username and password are required[white]")
+		lf.ErrorText.SetText("[gray]Username and password are required[white]")
 		return
 	}
 
 	client := auth.NewDefaultClient()
 	session, err := client.Login(context.TODO(), username, password)
 	if err != nil {
-		lf.ErrorText.SetText(fmt.Sprintf("[red]✗ %v[white]", err))
+		lf.ErrorText.SetText(fmt.Sprintf("[gray]%v[white]", err))
 		return
 	}
 
 	saveErr := auth.SaveSession(&auth.StoredSession{
 		Token:     session.Token,
 		Username:  session.Username,
+		Email:     session.Username,
 		UserID:    session.UserID,
 		ExpiresAt: session.ExpiresAt,
 	})
 	if saveErr != nil {
-		lf.ErrorText.SetText(fmt.Sprintf("[red]✗ %v[white]", saveErr))
+		lf.ErrorText.SetText(fmt.Sprintf("[gray]%v[white]", saveErr))
 		return
 	}
 

@@ -34,7 +34,7 @@ func RenderStats(b *strings.Builder, c *models.Container) {
 
 	s := c.Stats
 
-	b.WriteString("\n  [yellow::b]CPU Usage[white:-:-]\n")
+	b.WriteString("\n  [white::b]CPU Usage[white:-:-]\n")
 	b.WriteString(BuildBarWithLabel("Total", s.CPU.Usage, fmt.Sprintf("(%d cores)", s.CPU.Cores), 40))
 	b.WriteString("\n")
 	if s.CPU.Throttling > 0 {
@@ -42,7 +42,7 @@ func RenderStats(b *strings.Builder, c *models.Container) {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\n  [yellow::b]Memory[white:-:-]\n")
+	b.WriteString("\n  [white::b]Memory[white:-:-]\n")
 	memPct := s.Memory.Percentage()
 	b.WriteString(BuildBarWithLabel("Total", memPct, fmt.Sprintf("%s / %s", FormatBytesInt64(s.Memory.Usage), FormatBytesInt64(s.Memory.Limit)), 40))
 	b.WriteString("\n")
@@ -59,20 +59,20 @@ func RenderStats(b *strings.Builder, c *models.Container) {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\n  [yellow::b]Network I/O[white:-:-]\n")
+	b.WriteString("\n  [white::b]Network I/O[white:-:-]\n")
 	rxLine, txLine := BuildRelativeBars("RX", uint64(s.Network.RxBytes), "TX", uint64(s.Network.TxBytes), 40)
 	b.WriteString(rxLine)
 	b.WriteString("\n")
 	b.WriteString(txLine)
 	b.WriteString("\n")
 
-	b.WriteString("\n  [yellow::b]Block I/O[white:-:-]\n")
+	b.WriteString("\n  [white::b]Block I/O[white:-:-]\n")
 	readLine, writeLine := BuildRelativeBars("Read", uint64(s.BlockIO.ReadBytes), "Write", uint64(s.BlockIO.WriteBytes), 40)
 	b.WriteString(readLine)
 	b.WriteString("\n")
 	b.WriteString(writeLine)
 	b.WriteString("\n")
 
-	b.WriteString("\n  [yellow::b]Process Info[white:-:-]\n")
+	b.WriteString("\n  [white::b]Process Info[white:-:-]\n")
 	fmt.Fprintf(b, "    PIDs     : %d\n", s.PIDs)
 }

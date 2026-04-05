@@ -8,7 +8,7 @@ import (
 )
 
 func RenderNetwork(b *strings.Builder, c *models.Container) {
-	b.WriteString("\n  [yellow::b]Port Mappings[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Port Mappings[white:-:-]\n\n")
 
 	if len(c.Ports) > 0 {
 		tb := NewTableBuilder("Private", "Public", "Type", "IP")
@@ -28,7 +28,7 @@ func RenderNetwork(b *strings.Builder, c *models.Container) {
 		b.WriteString("  [gray]No port mappings[white]\n")
 	}
 
-	b.WriteString("\n  [yellow::b]Networks[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Networks[white:-:-]\n\n")
 
 	if len(c.Networks) > 0 {
 		tb := NewTableBuilder("Network Name", "IP Address", "Gateway", "MAC")
@@ -44,7 +44,7 @@ func RenderNetwork(b *strings.Builder, c *models.Container) {
 		b.WriteString("  [gray]No networks[white]\n")
 	}
 
-	b.WriteString("\n  [yellow::b]Statistics[white:-:-]\n\n")
+	b.WriteString("\n  [white::b]Statistics[white:-:-]\n\n")
 
 	if c.Stats != nil {
 		net := c.Stats.Network

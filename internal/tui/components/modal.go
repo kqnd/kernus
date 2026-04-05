@@ -1,7 +1,6 @@
 package components
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -38,7 +37,7 @@ func (m *Modal) Show(app *tview.Application, returnTo tview.Primitive, message s
 		})
 
 	modal.SetBorder(true).SetTitle(" Confirm Action ")
-	modal.SetBackgroundColor(tcell.ColorDarkSlateGray)
+	modal.SetBackgroundColor(ColorZinc900)
 
 	pages := tview.NewPages().
 		AddPage("main", returnTo, true, true).

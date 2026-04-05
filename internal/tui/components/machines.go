@@ -36,7 +36,7 @@ func NewMachineList() *MachineList {
 	ml.View.SetTitle(" Machines ")
 	ml.View.SetHighlightFullLine(true)
 	ml.View.ShowSecondaryText(false)
-	ml.View.SetSelectedBackgroundColor(tcell.ColorDarkBlue)
+	ml.View.SetSelectedBackgroundColor(ColorZinc800)
 
 	ml.View.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(ml.items) {
@@ -104,6 +104,20 @@ func (ml *MachineList) UpdateMachines(machines []*models.Machine) {
 	ml.machines = machines
 	ml.buildGroups()
 	ml.rebuildList()
+
+	// Se tem máquinas, seleciona a primeira
+	if len(machines) > 0 && ml.View.GetCurrentItem() < 0 {
+		// Procura pelo primeiro item que não é grupo
+		for i, item := range ml.items {
+			if !item.isGroup && item.machine != nil {
+				ml.View.SetCurrentItem(i)
+				if ml.selectedFunc != nil {
+					ml.selectedFunc(item.machine)
+				}
+				break
+			}
+		}
+	}
 }
 
 func (ml *MachineList) buildGroups() {
@@ -140,12 +154,12 @@ func (ml *MachineList) rebuildList() {
 		members := ml.groups[groupName]
 
 		expanded := ml.expanded[groupName]
-		folderIcon := "📁"
+		folderIcon := "[gray]▸[white]"
 		if expanded {
-			folderIcon = "📂"
+			folderIcon = "[gray]▾[white]"
 		}
 
-		groupText := fmt.Sprintf("%s [yellow]%s[white] (%d)", folderIcon, groupName, len(members))
+		groupText := fmt.Sprintf("%s [::b]%s[-:-:-] [gray](%d)[white]", folderIcon, groupName, len(members))
 		ml.View.AddItem(groupText, "", 0, nil)
 		ml.items = append(ml.items, machineListItem{isGroup: true, groupName: groupName})
 
