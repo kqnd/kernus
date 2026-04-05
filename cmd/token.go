@@ -80,6 +80,12 @@ Examples:
 		ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if serverCfg, err := sender.FetchConfig(ctx2); err == nil && serverCfg.CollectionIntervalSeconds > 0 {
+			if cfg.Interval != serverCfg.CollectionIntervalSeconds {
+				cfg.Interval = serverCfg.CollectionIntervalSeconds
+				if _, saveErr := config.SaveAgentConfig(cfg); saveErr != nil {
+					fmt.Printf("⚠ Could not persist plan interval locally: %v\n", saveErr)
+				}
+			}
 			fmt.Printf("✓ Interval: %ds (plan)\n", serverCfg.CollectionIntervalSeconds)
 		} else {
 			fmt.Printf("✓ Interval: %ds (local default — plan will be applied at startup)\n", cfg.Interval)
