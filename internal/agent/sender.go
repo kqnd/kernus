@@ -136,3 +136,29 @@ func (s *Sender) Preflight(ctx context.Context, hostName string, containerCount 
 	}
 	return &envelope.Data, nil
 }
+
+func (s *Sender) SendLogSnapshots(ctx context.Context, reqBody LogSnapshotRequest) error {
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("cannot encode log snapshot payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.serverURL+"/v1/ingest/logs", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("cannot create log snapshot request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("log snapshot endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}

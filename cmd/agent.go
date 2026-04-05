@@ -153,6 +153,9 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 	configRefreshCounter := 0
 	const configRefreshInterval = 30
 
+	// Track previous container states to detect critical transitions
+	prevStates := make(map[string]string) // containerID → status
+
 	runCycle := func(cycleCtx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -170,6 +173,57 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 		if len(containers) == 0 {
 			consecutiveErrors = 0
 			return
+		}
+
+		// Detect critical transitions and capture log snapshots
+		var snapshots []agent.LogSnapshot
+		currentStates := make(map[string]string, len(containers))
+		for _, c := range containers {
+			currentStates[c.ID] = c.Status
+			prev, existed := prevStates[c.ID]
+			if !existed {
+				continue
+			}
+			// Critical: was running, now exited/dead with non-zero exit or OOM
+			if prev == "running" && (c.Status == "exited" || c.Status == "dead") && (c.ExitCode != 0 || c.OOMKilled) {
+				eventType := "crash"
+				if c.OOMKilled {
+					eventType = "oom_kill"
+				}
+				logs, logErr := collector.GetContainerLogs(cycleCtx, c.ID, 100)
+				if logErr != nil {
+					fmt.Printf("⚠ Could not capture logs for %s: %v\n", c.Name, logErr)
+					logs = nil
+				}
+				snapshots = append(snapshots, agent.LogSnapshot{
+					ContainerID:   c.ID,
+					ContainerName: c.Name,
+					Timestamp:     c.Timestamp,
+					EventType:     eventType,
+					ExitCode:      c.ExitCode,
+					ExitReason:    c.ExitReason,
+					LogLines:      logs,
+					CPUPercent:    c.CPUPercent,
+					MemoryUsed:    c.MemoryUsed,
+					MemoryLimit:   c.MemoryLimit,
+				})
+			}
+		}
+		prevStates = currentStates
+
+		// Send log snapshots (non-blocking: don't fail the whole cycle)
+		if len(snapshots) > 0 {
+			go func() {
+				snapCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := sender.SendLogSnapshots(snapCtx, agent.LogSnapshotRequest{
+					HostName:  runtimeCfg.HostName,
+					SentAt:    time.Now().UTC(),
+					Snapshots: snapshots,
+				}); err != nil {
+					fmt.Printf("⚠ Failed to send log snapshots: %v\n", err)
+				}
+			}()
 		}
 
 		for start := 0; start < len(containers); start += 500 {

@@ -55,6 +55,10 @@ func (mc *MockCollector) Close() error {
 	return nil
 }
 
+func (mc *MockCollector) GetContainerLogs(_ context.Context, _ string, _ int) ([]string, error) {
+	return []string{"[mock] no logs available in mock mode"}, nil
+}
+
 func (mc *MockCollector) Collect(ctx context.Context) ([]ContainerMetric, error) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()

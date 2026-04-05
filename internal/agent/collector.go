@@ -3,6 +3,7 @@ package agent
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -151,6 +152,7 @@ func (c *Collector) collectContainerMetric(ctx context.Context, ct types.Contain
 	metric.CPUPercent = float32(calculateCPUPercent(stats))
 	metric.MemoryUsed = calculateMemoryUsed(stats)
 	metric.MemoryLimit = calculateMemoryLimit(stats, c.hostMemoryTotal)
+	metric.NetworkRxBytes, metric.NetworkTxBytes = calculateNetworkIO(stats)
 
 	return metric, nil
 }
@@ -199,6 +201,14 @@ func calculateMemoryLimit(stats types.StatsJSON, hostTotal uint64) uint64 {
 	return limit
 }
 
+func calculateNetworkIO(stats types.StatsJSON) (rxBytes, txBytes uint64) {
+	for _, netStats := range stats.Networks {
+		rxBytes += netStats.RxBytes
+		txBytes += netStats.TxBytes
+	}
+	return rxBytes, txBytes
+}
+
 func readHostMemoryTotal() uint64 {
 	if runtime.GOOS != "linux" {
 		return 0
@@ -235,4 +245,57 @@ func limitString(v string, max int) string {
 		return v
 	}
 	return v[:max]
+}
+
+func (c *Collector) GetContainerLogs(ctx context.Context, containerID string, lines int) ([]string, error) {
+	tail := fmt.Sprintf("%d", lines)
+	reader, err := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       tail,
+		Timestamps: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot get logs for container %s: %w", limitString(containerID, 12), err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read logs: %w", err)
+	}
+
+	return parseDockerLogs(data), nil
+}
+
+func parseDockerLogs(data []byte) []string {
+	var lines []string
+	offset := 0
+
+	for offset < len(data) {
+		if offset+8 <= len(data) && (data[offset] == 1 || data[offset] == 2) && data[offset+1] == 0 && data[offset+2] == 0 && data[offset+3] == 0 {
+			size := binary.BigEndian.Uint32(data[offset+4 : offset+8])
+			offset += 8
+			if offset+int(size) <= len(data) {
+				line := strings.TrimRight(string(data[offset:offset+int(size)]), "\n\r")
+				if line != "" {
+					lines = append(lines, line)
+				}
+				offset += int(size)
+				continue
+			}
+		}
+
+		end := offset
+		for end < len(data) && data[end] != '\n' {
+			end++
+		}
+		line := strings.TrimRight(string(data[offset:end]), "\r")
+		if line != "" {
+			lines = append(lines, line)
+		}
+		offset = end + 1
+	}
+
+	return lines
 }
