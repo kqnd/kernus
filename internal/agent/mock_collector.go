@@ -74,6 +74,21 @@ func (mc *MockCollector) Collect(ctx context.Context) ([]ContainerMetric, error)
 			Health:       mc.containers[i].health,
 			Timestamp:    time.Now().UTC(),
 		}
+		// Populate exit info for non-running containers
+		if m.Status == "exited" || m.Status == "dead" {
+			switch mc.containers[i].behavior {
+			case behaviorMemoryLeak:
+				m.ExitCode = 137
+				m.OOMKilled = true
+				m.ExitReason = ClassifyExitReason(137, true)
+			case behaviorRestartStorm:
+				m.ExitCode = 1
+				m.ExitReason = ClassifyExitReason(1, false)
+			default:
+				m.ExitCode = 0
+				m.ExitReason = ClassifyExitReason(0, false)
+			}
+		}
 		metrics = append(metrics, m)
 	}
 	return metrics, nil

@@ -113,6 +113,10 @@ func (c *Client) ListContainers(ctx context.Context, onlyRunning bool) ([]models
 				}
 				mu.Lock()
 				mc.ExitCode = inspect.State.ExitCode
+				mc.OOMKilled = inspect.State.OOMKilled
+				if !inspect.State.Running {
+					mc.ExitReason = classifyExitReason(inspect.State.ExitCode, inspect.State.OOMKilled)
+				}
 				if inspect.State.Health != nil {
 					mc.Health.Status = models.HealthStatus(inspect.State.Health.Status)
 					mc.Health.FailingStreak = inspect.State.Health.FailingStreak
@@ -317,6 +321,21 @@ func detectStatus(state string) models.ContainerStatus {
 		return models.StatusDead
 	default:
 		return models.StatusStopped
+	}
+}
+
+func classifyExitReason(exitCode int, oomKilled bool) string {
+	switch {
+	case exitCode == 0:
+		return "clean_stop"
+	case oomKilled:
+		return "oom_killed"
+	case exitCode == 137 && !oomKilled:
+		return "force_killed"
+	case exitCode >= 1 && exitCode <= 126:
+		return "app_crashed"
+	default:
+		return "unknown"
 	}
 }
 

@@ -24,6 +24,12 @@ func RenderOverview(b *strings.Builder, c *models.Container) {
 	fmt.Fprintf(b, "    Health   : [%s]%s %s[white]\n", healthColor, healthIcon, c.Health.Status)
 	if c.ExitCode != 0 {
 		fmt.Fprintf(b, "    Exit Code: [red]%d[white]\n", c.ExitCode)
+		if c.ExitReason != "" {
+			fmt.Fprintf(b, "    Exit Why : [red]%s[white]\n", c.ExitReason)
+		}
+		if c.OOMKilled {
+			fmt.Fprintf(b, "    OOM Kill : [red]yes[white]\n")
+		}
 	}
 
 	b.WriteString("\n  [yellow::b]Timing[white:-:-]\n")

@@ -121,6 +121,13 @@ func (c *Collector) collectContainerMetric(ctx context.Context, ct types.Contain
 		Timestamp:    timestamp,
 	}
 
+	// Capture exit info for non-running containers (exited, dead, stopped)
+	if inspect.State != nil && !inspect.State.Running {
+		metric.ExitCode = int32(inspect.State.ExitCode)
+		metric.OOMKilled = inspect.State.OOMKilled
+		metric.ExitReason = ClassifyExitReason(inspect.State.ExitCode, inspect.State.OOMKilled)
+	}
+
 	if inspect.State == nil || !inspect.State.Running {
 		return metric, nil
 	}

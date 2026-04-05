@@ -110,6 +110,8 @@ type Container struct {
 	Health        ContainerHealth
 	RestartPolicy RestartPolicy
 	ExitCode      int
+	ExitReason    string
+	OOMKilled     bool
 	Logs          []string
 }
 
@@ -464,6 +466,8 @@ func MockContainers() []Container {
 			Health:        ContainerHealth{Status: HealthNone},
 			RestartPolicy: RestartPolicy{Name: "no", MaximumRetryCount: 0},
 			ExitCode:      137,
+			ExitReason:    "oom_killed",
+			OOMKilled:     true,
 			Logs:          []string{"2026-03-22T13:00:00.000Z [info] Starting nginx...", "2026-03-22T13:00:01.000Z [error] Failed to bind port 80", "2026-03-22T13:00:01.500Z [fatal] Exiting"},
 		},
 		{
@@ -542,6 +546,8 @@ func MockContainers() []Container {
 			Health:        ContainerHealth{Status: HealthNone},
 			RestartPolicy: RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 			ExitCode:      1,
+			ExitReason:    "app_crashed",
+			OOMKilled:     false,
 			Logs:          []string{"2026-03-23T03:00:00.000Z [info] Worker starting...", "2026-03-23T03:00:05.000Z [warn] Queue backlog detected", "2026-03-23T12:00:00.000Z [error] Connection lost to broker", "2026-03-23T12:00:01.000Z [fatal] Panic: runtime error"},
 		},
 		{

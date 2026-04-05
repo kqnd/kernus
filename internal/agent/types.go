@@ -25,5 +25,24 @@ type ContainerMetric struct {
 	RestartCount uint16    `json:"restart_count"`
 	Status       string    `json:"status"`
 	Health       string    `json:"health"`
+	ExitCode     int32     `json:"exit_code"`
+	ExitReason   string    `json:"exit_reason"`
+	OOMKilled    bool      `json:"oom_killed"`
 	Timestamp    time.Time `json:"timestamp"`
+}
+
+// ClassifyExitReason determines a human-readable exit reason from container state.
+func ClassifyExitReason(exitCode int, oomKilled bool) string {
+	switch {
+	case exitCode == 0:
+		return "clean_stop"
+	case oomKilled:
+		return "oom_killed"
+	case exitCode == 137 && !oomKilled:
+		return "force_killed"
+	case exitCode >= 1 && exitCode <= 126:
+		return "app_crashed"
+	default:
+		return "unknown"
+	}
 }
