@@ -3,12 +3,14 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kiev/kernus/internal/config"
 	"github.com/spf13/cobra"
 )
 
 var cfg *config.Config
+var currentVersion = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "kernus",
@@ -43,6 +45,15 @@ Examples:
 		cfg = loaded
 		return nil
 	},
+}
+
+func SetVersion(version string) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		version = "dev"
+	}
+	currentVersion = version
+	rootCmd.Version = version
 }
 
 func Execute() {

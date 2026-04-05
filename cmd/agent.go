@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/kiev/kernus/internal/agent"
 	"github.com/kiev/kernus/internal/config"
+	"github.com/kiev/kernus/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +32,21 @@ var agentStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the docker metrics agent",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		updateCtx, cancelUpdate := context.WithTimeout(context.Background(), 30*time.Second)
+		latestVersion, updateErr := update.NewClient("").MaybeSelfUpdate(updateCtx, currentVersion)
+		cancelUpdate()
+		if updateErr != nil {
+			if errors.Is(updateErr, update.ErrRestartScheduled) {
+				fmt.Printf("→ Updated Kernus agent to %s. Restarting with the new binary...\n", latestVersion)
+				return nil
+			}
+			fmt.Printf("⚠ Auto-update skipped: %v\n", updateErr)
+		} else if latestVersion != "" {
+			// On Unix the process re-execs before returning here. This log is only a fallback.
+			fmt.Printf("→ Updated Kernus agent to %s. Restarting with the new binary...\n", latestVersion)
+			return nil
+		}
+
 		runtimeCfg, err := config.ResolveAgentRuntimeConfig()
 		if err != nil {
 			return err
@@ -70,6 +87,7 @@ var agentStartCmd = &cobra.Command{
 		} else {
 			if serverCfg.CollectionIntervalSeconds > 0 {
 				runtimeCfg.Interval = serverCfg.CollectionIntervalSeconds
+				persistPlanInterval(serverCfg.CollectionIntervalSeconds)
 			}
 		}
 
@@ -150,8 +168,8 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 	defer collector.Close()
 
 	consecutiveErrors := 0
-	configRefreshCounter := 0
-	const configRefreshInterval = 30
+	lastConfigRefresh := time.Now()
+	const configRefreshMinInterval = 1 * time.Minute
 
 	// Track previous container states to detect critical transitions
 	prevStates := make(map[string]string) // containerID → status
@@ -175,7 +193,7 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 			return
 		}
 
-		// Detect critical transitions and capture log snapshots
+		// Detect state transitions and capture log snapshots for any running→exited/dead
 		var snapshots []agent.LogSnapshot
 		currentStates := make(map[string]string, len(containers))
 		for _, c := range containers {
@@ -184,11 +202,12 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 			if !existed {
 				continue
 			}
-			// Critical: was running, now exited/dead with non-zero exit or OOM
-			if prev == "running" && (c.Status == "exited" || c.Status == "dead") && (c.ExitCode != 0 || c.OOMKilled) {
-				eventType := "crash"
+			if prev == "running" && (c.Status == "exited" || c.Status == "dead") {
+				eventType := "clean_stop"
 				if c.OOMKilled {
 					eventType = "oom_kill"
+				} else if c.ExitCode != 0 {
+					eventType = "crash"
 				}
 				logs, logErr := collector.GetContainerLogs(cycleCtx, c.ID, 100)
 				if logErr != nil {
@@ -262,14 +281,15 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 			return fmt.Errorf("too many consecutive errors (%d)", consecutiveErrors)
 		}
 
-		configRefreshCounter++
-		if configRefreshCounter%configRefreshInterval == 0 {
+		if time.Since(lastConfigRefresh) >= configRefreshMinInterval {
 			if serverCfg, fetchErr := sender.FetchConfig(ctx); fetchErr == nil && serverCfg.CollectionIntervalSeconds > 0 {
 				if runtimeCfg.Interval != serverCfg.CollectionIntervalSeconds {
 					fmt.Printf("→ Plan collection interval updated: %ds (was %ds)\n", serverCfg.CollectionIntervalSeconds, runtimeCfg.Interval)
 					runtimeCfg.Interval = serverCfg.CollectionIntervalSeconds
+					persistPlanInterval(serverCfg.CollectionIntervalSeconds)
 				}
 			}
+			lastConfigRefresh = time.Now()
 		}
 
 		t0 := time.Now()
@@ -355,6 +375,23 @@ func sendWithPolicy(ctx context.Context, sender *agent.Sender, payload agent.Ing
 		}
 	}
 	return nil
+}
+
+func persistPlanInterval(interval int) {
+	if interval <= 0 || strings.TrimSpace(os.Getenv("KERNUS_INTERVAL")) != "" {
+		return
+	}
+	cfg, err := config.LoadAgentConfig()
+	if err != nil || cfg == nil {
+		return
+	}
+	if cfg.AgentToken == "" || cfg.ServerURL == "" || cfg.Interval == interval {
+		return
+	}
+	cfg.Interval = interval
+	if _, err := config.SaveAgentConfig(cfg); err != nil {
+		fmt.Printf("⚠ Could not persist plan interval locally: %v\n", err)
+	}
 }
 
 func init() {
