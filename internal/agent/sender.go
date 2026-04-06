@@ -30,12 +30,14 @@ type PreflightRequest struct {
 }
 
 type PreflightResponse struct {
-	CanProceed        bool   `json:"can_proceed"`
-	Reason            string `json:"reason,omitempty"`
-	CurrentContainers int    `json:"current_containers"`
-	MaxContainers     int    `json:"max_containers"`
-	CurrentHosts      int    `json:"current_hosts"`
-	MaxHosts          int    `json:"max_hosts"`
+	CanProceed           bool   `json:"can_proceed"`
+	Reason               string `json:"reason,omitempty"`
+	CurrentContainers    int    `json:"current_containers"`
+	MaxContainers        int    `json:"max_containers"`
+	CurrentHosts         int    `json:"current_hosts"`
+	MaxHosts             int    `json:"max_hosts"`
+	ContainersThisHost   int    `json:"containers_this_host"`
+	ContainersOtherHosts int    `json:"containers_other_hosts"`
 }
 
 type Sender struct {

@@ -142,6 +142,10 @@ var agentStartCmd = &cobra.Command{
 					fmt.Printf("✗ Cannot start monitoring: %s\n", pf.Reason)
 					fmt.Printf("  Containers: %d/%s  |  Hosts: %d/%s\n",
 						pf.CurrentContainers, maxC, pf.CurrentHosts, maxH)
+					if pf.ContainersThisHost+pf.ContainersOtherHosts == pf.CurrentContainers && pf.CurrentContainers > 0 {
+						fmt.Printf("  → This host would report %d container(s); %d distinct ID(s) already counted from other host(s) in the org (last 24h).\n",
+							pf.ContainersThisHost, pf.ContainersOtherHosts)
+					}
 					return nil
 				}
 			}

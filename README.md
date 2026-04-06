@@ -102,6 +102,8 @@ kernus agent start --name-prefix wikig-main --name-prefix wikig-client
 
 Environment equivalents: `KERNUS_AGENT_ALL_CONTAINERS=1`, `KERNUS_AGENT_NAME_PREFIX=wikig-main,wikig-client` (comma-separated).
 
+**Plan limits are per organization, not per machine.** Preflight adds your host’s container count to distinct container IDs already seen from **other hosts** for the same org in the last 24 hours (from Kernus storage). Using `--name-prefix` on one server does not reduce counts from agents running elsewhere with the same token/org.
+
 | Flag | Description |
 |------|-------------|
 | `--all-containers` | List stopped/exited containers too (`docker ps -a`); they count toward plan limits. |
