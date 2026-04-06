@@ -18,12 +18,24 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// DockerListOptions configures which containers are listed for preflight count and metric collection.
+// By default only running containers are included (equivalent to docker ps), so stopped/exited
+// containers do not count against plan limits.
+type DockerListOptions struct {
+	// AllContainers lists stopped and exited containers too (docker ps -a).
+	AllContainers bool
+	// NamePrefixes: if non-empty, only containers whose display name starts with one of these strings
+	// (after stripping a leading "/") are included.
+	NamePrefixes []string
+}
+
 type Collector struct {
 	cli             *client.Client
 	hostMemoryTotal uint64
+	list            DockerListOptions
 }
 
-func NewCollector(dockerHost string) (*Collector, error) {
+func NewCollector(dockerHost string, list DockerListOptions) (*Collector, error) {
 	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
 	if strings.TrimSpace(dockerHost) != "" {
 		opts = append(opts, client.WithHost(strings.TrimSpace(dockerHost)))
@@ -48,7 +60,39 @@ func NewCollector(dockerHost string) (*Collector, error) {
 		hostMemTotal = readHostMemoryTotal()
 	}
 
-	return &Collector{cli: cli, hostMemoryTotal: hostMemTotal}, nil
+	return &Collector{cli: cli, hostMemoryTotal: hostMemTotal, list: list}, nil
+}
+
+func firstContainerName(ct types.Container) string {
+	if len(ct.Names) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(ct.Names[0], "/")
+}
+
+func matchesNamePrefix(name string, prefixes []string) bool {
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, p := range prefixes {
+		if p != "" && strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Collector) filterListed(containers []types.Container) []types.Container {
+	if len(c.list.NamePrefixes) == 0 {
+		return containers
+	}
+	out := make([]types.Container, 0, len(containers))
+	for _, ct := range containers {
+		if matchesNamePrefix(firstContainerName(ct), c.list.NamePrefixes) {
+			out = append(out, ct)
+		}
+	}
+	return out
 }
 
 func (c *Collector) Close() error {
@@ -59,18 +103,20 @@ func (c *Collector) Close() error {
 }
 
 func (c *Collector) CountContainers(ctx context.Context) (int, error) {
-	containers, err := c.cli.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := c.cli.ContainerList(ctx, container.ListOptions{All: c.list.AllContainers})
 	if err != nil {
 		return 0, fmt.Errorf("cannot list containers: %w", err)
 	}
+	containers = c.filterListed(containers)
 	return len(containers), nil
 }
 
 func (c *Collector) Collect(ctx context.Context) ([]ContainerMetric, error) {
-	containers, err := c.cli.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := c.cli.ContainerList(ctx, container.ListOptions{All: c.list.AllContainers})
 	if err != nil {
 		return nil, fmt.Errorf("cannot list containers: %w", err)
 	}
+	containers = c.filterListed(containers)
 
 	metrics := make([]ContainerMetric, 0, len(containers))
 	for _, ct := range containers {

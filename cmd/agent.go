@@ -71,6 +71,8 @@ var agentStartCmd = &cobra.Command{
 			return err
 		}
 
+		dockerList := resolveDockerListOptions(cmd)
+
 		useMock, err := cmd.Flags().GetBool("mock")
 		if err != nil {
 			return err
@@ -110,8 +112,19 @@ var agentStartCmd = &cobra.Command{
 			fmt.Println("✓ Mock mode: using simulated containers with extreme behaviors")
 		}
 
+		if !useMock {
+			switch {
+			case dockerList.AllContainers:
+				fmt.Println("✓ Container scope: all states (docker ps -a), including stopped/exited")
+			case len(dockerList.NamePrefixes) > 0:
+				fmt.Printf("✓ Container scope: running containers matching name prefix %v\n", dockerList.NamePrefixes)
+			default:
+				fmt.Println("✓ Container scope: running only (matches docker ps; stopped containers are not counted)")
+			}
+		}
+
 		if !useMock && fetchErr == nil {
-			pfCollector, pfErr := agent.NewCollector(dockerHost)
+			pfCollector, pfErr := agent.NewCollector(dockerHost, dockerList)
 			if pfErr == nil {
 				localCount, _ := pfCollector.CountContainers(ctx)
 				pfCollector.Close()
@@ -135,7 +148,7 @@ var agentStartCmd = &cobra.Command{
 		}
 
 		for ctx.Err() == nil {
-			err := runAgentLoop(ctx, stop, runtimeCfg, dockerHost, sender, useMock)
+			err := runAgentLoop(ctx, stop, runtimeCfg, dockerHost, sender, useMock, dockerList)
 			if err != nil {
 				if ctx.Err() != nil {
 					break
@@ -208,12 +221,12 @@ func applyTombstoneHints(m *agent.ContainerMetric, exitReason string) {
 	}
 }
 
-func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *config.AgentConfig, dockerHost string, sender *agent.Sender, useMock bool) error {
+func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *config.AgentConfig, dockerHost string, sender *agent.Sender, useMock bool, dockerList agent.DockerListOptions) error {
 	var collector agent.MetricCollector
 	if useMock {
 		collector = agent.NewMockCollector()
 	} else {
-		realCollector, err := agent.NewCollector(dockerHost)
+		realCollector, err := agent.NewCollector(dockerHost, dockerList)
 		if err != nil {
 			return fmt.Errorf("docker connection failed: %w", err)
 		}
@@ -616,8 +629,27 @@ func persistPlanInterval(interval int) {
 	}
 }
 
+func resolveDockerListOptions(cmd *cobra.Command) agent.DockerListOptions {
+	all, _ := cmd.Flags().GetBool("all-containers")
+	prefixes, _ := cmd.Flags().GetStringSlice("name-prefix")
+	if v := strings.TrimSpace(os.Getenv("KERNUS_AGENT_ALL_CONTAINERS")); v == "1" || strings.EqualFold(v, "true") {
+		all = true
+	}
+	if v := strings.TrimSpace(os.Getenv("KERNUS_AGENT_NAME_PREFIX")); v != "" {
+		for _, p := range strings.Split(v, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				prefixes = append(prefixes, p)
+			}
+		}
+	}
+	return agent.DockerListOptions{AllContainers: all, NamePrefixes: prefixes}
+}
+
 func init() {
 	agentStartCmd.Flags().String("docker-host", "", "Docker daemon URL (optional)")
+	agentStartCmd.Flags().Bool("all-containers", false, "List stopped/exited containers too (docker ps -a); counts against plan limits")
+	agentStartCmd.Flags().StringSlice("name-prefix", nil, "Only monitor containers whose name starts with this prefix (repeat flag for multiple). Implies running-only unless --all-containers")
 	agentStartCmd.Flags().Bool("mock", false, "Use mock containers with extreme random behaviors (testing)")
 	agentCmd.AddCommand(agentStartCmd)
 	rootCmd.AddCommand(agentCmd)

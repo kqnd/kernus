@@ -82,9 +82,30 @@ That's it. The agent will begin streaming Docker container metrics to your Kernu
 
 Start the background metrics agent. Reads configuration from `agent.conf` and environment variables, connects to the Docker daemon, and begins streaming container metrics to the server.
 
+**Container scope:** by default the agent lists **only running** containers (same idea as `docker ps`). Stopped or exited containers from `docker ps -a` are **not** counted for plan preflight or sent as metrics. On hosts with many old stopped containers, this keeps counts aligned with what is actually running.
+
 ```bash
 kernus agent start
 ```
+
+Include stopped containers (previous behavior, counts everything in `docker ps -a`):
+
+```bash
+kernus agent start --all-containers
+```
+
+Only monitor stacks whose container names start with a prefix (useful when several projects share one Docker host):
+
+```bash
+kernus agent start --name-prefix wikig-main --name-prefix wikig-client
+```
+
+Environment equivalents: `KERNUS_AGENT_ALL_CONTAINERS=1`, `KERNUS_AGENT_NAME_PREFIX=wikig-main,wikig-client` (comma-separated).
+
+| Flag | Description |
+|------|-------------|
+| `--all-containers` | List stopped/exited containers too (`docker ps -a`); they count toward plan limits. |
+| `--name-prefix` | Repeatable; only containers whose name starts with one of these strings (after `/`) are included. |
 
 ### `kernus token create <label>`
 
