@@ -154,6 +154,60 @@ var agentStartCmd = &cobra.Command{
 	},
 }
 
+// tombstoneMetric synthesizes a final row when a container disappears from Docker between
+// collection cycles. We do not assume clean_stop — real cause was not observed via inspect.
+func tombstoneMetric(prev agent.ContainerMetric, ts time.Time) agent.ContainerMetric {
+	m := prev
+	m.Timestamp = ts
+	m.Status = "exited"
+	m.Health = "none"
+	m.ExitCode = 0
+	m.ExitReason = "unknown"
+	m.OOMKilled = false
+	m.CPUPercent = 0
+	m.MemoryUsed = 0
+	m.NetworkRxBytes = 0
+	m.NetworkTxBytes = 0
+	return m
+}
+
+// inferRemovedSnapshotFromLogs classifies log tail when the container ID is already gone from Docker.
+// Docker may still return recent logs briefly after stop/remove.
+func inferRemovedSnapshotFromLogs(logs []string) (eventType string, exitReason string) {
+	eventType = "removed"
+	exitReason = "unknown"
+	if len(logs) == 0 {
+		return
+	}
+	var b strings.Builder
+	for _, line := range logs {
+		b.WriteString(strings.ToLower(line))
+		b.WriteByte('\n')
+	}
+	j := b.String()
+	if strings.Contains(j, "oomkilled") || strings.Contains(j, "out of memory") || strings.Contains(j, "cannot allocate memory") {
+		return "oom_kill", "oom_killed"
+	}
+	if strings.Contains(j, "panic:") || strings.Contains(j, "fatal error") || strings.Contains(j, "segmentation fault") {
+		return "crash", "app_crashed"
+	}
+	return
+}
+
+func applyTombstoneHints(m *agent.ContainerMetric, exitReason string) {
+	switch exitReason {
+	case "oom_killed":
+		m.ExitReason = "oom_killed"
+		m.OOMKilled = true
+		m.ExitCode = 137
+	case "app_crashed":
+		m.ExitReason = "app_crashed"
+		m.ExitCode = 1
+	default:
+		// keep unknown / 0 from tombstoneMetric
+	}
+}
+
 func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *config.AgentConfig, dockerHost string, sender *agent.Sender, useMock bool) error {
 	var collector agent.MetricCollector
 	if useMock {
@@ -167,12 +221,27 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 	}
 	defer collector.Close()
 
+	// Start Docker event watcher in a background goroutine.
+	// On failure (e.g. mock mode or Docker unreachable) we fall back gracefully.
+	var watcher *agent.EventWatcher
+	if !useMock {
+		w, watchErr := agent.NewEventWatcher(dockerHost)
+		if watchErr != nil {
+			fmt.Printf("⚠ Docker event watcher unavailable: %v (tombstones will use log heuristics)\n", watchErr)
+		} else {
+			watcher = w
+			go watcher.Run(ctx)
+			defer watcher.Close()
+		}
+	}
+
 	consecutiveErrors := 0
 	lastConfigRefresh := time.Now()
 	const configRefreshMinInterval = 1 * time.Minute
 
-	// Track previous container states to detect critical transitions
+	// Previous cycle: full metric per ID (for tombstones) and status (for transitions).
 	prevStates := make(map[string]string) // containerID → status
+	prevByID := make(map[string]agent.ContainerMetric)
 
 	runCycle := func(cycleCtx context.Context) {
 		defer func() {
@@ -188,25 +257,95 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 			fmt.Printf("✗ collect error (%d/%d): %v\n", consecutiveErrors, maxConsecutiveErrors, collectErr)
 			return
 		}
-		if len(containers) == 0 {
+
+		if len(containers) == 0 && len(prevByID) == 0 {
 			consecutiveErrors = 0
 			return
 		}
 
-		// Detect state transitions and capture log snapshots for any running→exited/dead
-		var snapshots []agent.LogSnapshot
+		currentByID := make(map[string]struct{}, len(containers))
 		currentStates := make(map[string]string, len(containers))
 		for _, c := range containers {
+			currentByID[c.ID] = struct{}{}
 			currentStates[c.ID] = c.Status
+		}
+
+		ts := time.Now().UTC()
+		var snapshots []agent.LogSnapshot
+		tombstones := make([]agent.ContainerMetric, 0)
+
+		// Disappeared from Docker since last cycle → synthetic exited + snapshot.
+		// Prefer event-watcher data (captured at die time with real exit code + fresh logs).
+		// Fall back to log heuristics if the watcher was unavailable or missed the event.
+		for _, prev := range prevByID {
+			if _, stillThere := currentByID[prev.ID]; stillThere {
+				continue
+			}
+
+			tmb := tombstoneMetric(prev, ts)
+			var evType, evReason string
+			var logLines []string
+
+			if watcher != nil {
+				if cap := watcher.Drain(prev.ID); cap != nil {
+					// Watcher captured precise exit info at the moment of death.
+					tmb.ExitCode = cap.ExitCode
+					tmb.OOMKilled = cap.OOMKilled
+					tmb.ExitReason = cap.ExitReason
+					logLines = cap.LogLines
+					if cap.MemoryLimit > 0 {
+						tmb.MemoryLimit = cap.MemoryLimit
+					}
+					evReason = cap.ExitReason
+					switch {
+					case cap.OOMKilled:
+						evType = "oom_kill"
+					case cap.ExitCode != 0:
+						evType = "crash"
+					default:
+						evType = "clean_stop"
+					}
+				}
+			}
+
+			if evType == "" {
+				// Fallback: try docker logs on the old ID (may be empty if already removed).
+				logs, logErr := collector.GetContainerLogs(cycleCtx, prev.ID, 100)
+				if logErr != nil {
+					logs = nil
+				}
+				logLines = logs
+				evType, evReason = inferRemovedSnapshotFromLogs(logs)
+				applyTombstoneHints(&tmb, evReason)
+			}
+
+			tombstones = append(tombstones, tmb)
+			snapshots = append(snapshots, agent.LogSnapshot{
+				ContainerID:   prev.ID,
+				ContainerName: prev.Name,
+				Timestamp:     ts,
+				EventType:     evType,
+				ExitCode:      tmb.ExitCode,
+				ExitReason:    tmb.ExitReason,
+				LogLines:      logLines,
+				CPUPercent:    0,
+				MemoryUsed:    0,
+				MemoryLimit:   tmb.MemoryLimit,
+			})
+		}
+
+		// In-list transitions: running → exited/dead (logs when container still exists).
+		for _, c := range containers {
 			prev, existed := prevStates[c.ID]
 			if !existed {
 				continue
 			}
 			if prev == "running" && (c.Status == "exited" || c.Status == "dead") {
 				eventType := "clean_stop"
-				if c.OOMKilled {
+				switch {
+				case c.OOMKilled:
 					eventType = "oom_kill"
-				} else if c.ExitCode != 0 {
+				case c.Status == "dead" || c.ExitCode != 0:
 					eventType = "crash"
 				}
 				logs, logErr := collector.GetContainerLogs(cycleCtx, c.ID, 100)
@@ -228,29 +367,37 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 				})
 			}
 		}
-		prevStates = currentStates
+
+		toSend := make([]agent.ContainerMetric, 0, len(containers)+len(tombstones))
+		toSend = append(toSend, containers...)
+		toSend = append(toSend, tombstones...)
+
+		if len(toSend) == 0 {
+			consecutiveErrors = 0
+			return
+		}
 
 		// Send log snapshots (non-blocking: don't fail the whole cycle)
 		if len(snapshots) > 0 {
-			go func() {
+			go func(snaps []agent.LogSnapshot) {
 				snapCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				if err := sender.SendLogSnapshots(snapCtx, agent.LogSnapshotRequest{
 					HostName:  runtimeCfg.HostName,
 					SentAt:    time.Now().UTC(),
-					Snapshots: snapshots,
+					Snapshots: snaps,
 				}); err != nil {
 					fmt.Printf("⚠ Failed to send log snapshots: %v\n", err)
 				}
-			}()
+			}(snapshots)
 		}
 
-		for start := 0; start < len(containers); start += 500 {
+		for start := 0; start < len(toSend); start += 500 {
 			end := start + 500
-			if end > len(containers) {
-				end = len(containers)
+			if end > len(toSend) {
+				end = len(toSend)
 			}
-			batch := containers[start:end]
+			batch := toSend[start:end]
 			payload := agent.IngestRequest{
 				HostName:   runtimeCfg.HostName,
 				SentAt:     time.Now().UTC(),
@@ -268,6 +415,13 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 				return
 			}
 		}
+
+		nextPrev := make(map[string]agent.ContainerMetric, len(containers))
+		for _, c := range containers {
+			nextPrev[c.ID] = c
+		}
+		prevByID = nextPrev
+		prevStates = currentStates
 		consecutiveErrors = 0
 	}
 
