@@ -241,8 +241,14 @@ func calculateMemoryUsed(stats types.StatsJSON) uint64 {
 
 func calculateMemoryLimit(stats types.StatsJSON, hostTotal uint64) uint64 {
 	limit := stats.MemoryStats.Limit
+	// Docker reports the host's total RAM as the limit when no per-container
+	// limit is configured. Use hostTotal as the effective ceiling so callers
+	// always have a meaningful denominator (avoids 3823 MB / 0 = N/A).
 	if hostTotal > 0 && limit == hostTotal {
-		return 0
+		return hostTotal
+	}
+	if limit == 0 && hostTotal > 0 {
+		return hostTotal
 	}
 	return limit
 }
