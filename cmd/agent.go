@@ -239,6 +239,21 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 	lastConfigRefresh := time.Now()
 	const configRefreshMinInterval = 1 * time.Minute
 
+	// Log snapshot cooldown: prevents snapshot storms when a container is in a crash loop.
+	// After the first snapshot, we suppress further snapshots for the same container
+	// until snapshotCooldown has elapsed. The cooldown resets naturally once the container
+	// is healthy long enough for the timer to expire.
+	const snapshotCooldown = 15 * time.Minute
+	lastSnapshot := make(map[string]time.Time) // containerID → last snapshot sent time
+
+	canSendSnapshot := func(containerID string) bool {
+		last, ok := lastSnapshot[containerID]
+		return !ok || time.Since(last) >= snapshotCooldown
+	}
+	markSnapshot := func(containerID string) {
+		lastSnapshot[containerID] = time.Now()
+	}
+
 	// Previous cycle: full metric per ID (for tombstones) and status (for transitions).
 	prevStates := make(map[string]string) // containerID → status
 	prevByID := make(map[string]agent.ContainerMetric)
@@ -277,6 +292,8 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 		// Disappeared from Docker since last cycle → synthetic exited + snapshot.
 		// Prefer event-watcher data (captured at die time with real exit code + fresh logs).
 		// Fall back to log heuristics if the watcher was unavailable or missed the event.
+		// Tombstones always bypass the snapshot cooldown: container removal is a terminal event,
+		// not a repeating one, so we always want one final record.
 		for _, prev := range prevByID {
 			if _, stillThere := currentByID[prev.ID]; stillThere {
 				continue
@@ -332,6 +349,7 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 				MemoryUsed:    0,
 				MemoryLimit:   tmb.MemoryLimit,
 			})
+			markSnapshot(prev.ID)
 		}
 
 		// In-list transitions: running → exited/dead (logs when container still exists).
@@ -341,6 +359,9 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 				continue
 			}
 			if prev == "running" && (c.Status == "exited" || c.Status == "dead") {
+				if !canSendSnapshot(c.ID) {
+					continue
+				}
 				eventType := "clean_stop"
 				switch {
 				case c.OOMKilled:
@@ -365,15 +386,20 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 					MemoryUsed:    c.MemoryUsed,
 					MemoryLimit:   c.MemoryLimit,
 				})
+				markSnapshot(c.ID)
 			}
 		}
 
 		// Restart count increased since last cycle (crash loop / policy restart).
 		// Docker often reports "running" again with a higher restart_count before we see exited in a poll,
 		// so without this we never attach logs to restart storms.
+		// Rate-limited by snapshotCooldown: we capture the first occurrence and then back off.
 		for _, c := range containers {
 			prev, ok := prevByID[c.ID]
 			if !ok || c.RestartCount <= prev.RestartCount {
+				continue
+			}
+			if !canSendSnapshot(c.ID) {
 				continue
 			}
 			logs, logErr := collector.GetContainerLogs(cycleCtx, c.ID, 100)
@@ -407,6 +433,7 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 				MemoryUsed:    c.MemoryUsed,
 				MemoryLimit:   c.MemoryLimit,
 			})
+			markSnapshot(c.ID)
 		}
 
 		toSend := make([]agent.ContainerMetric, 0, len(containers)+len(tombstones))
