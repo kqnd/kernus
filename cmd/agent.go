@@ -368,6 +368,47 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 			}
 		}
 
+		// Restart count increased since last cycle (crash loop / policy restart).
+		// Docker often reports "running" again with a higher restart_count before we see exited in a poll,
+		// so without this we never attach logs to restart storms.
+		for _, c := range containers {
+			prev, ok := prevByID[c.ID]
+			if !ok || c.RestartCount <= prev.RestartCount {
+				continue
+			}
+			logs, logErr := collector.GetContainerLogs(cycleCtx, c.ID, 100)
+			if logErr != nil {
+				fmt.Printf("⚠ Could not capture logs after restart for %s: %v\n", c.Name, logErr)
+				logs = nil
+			}
+			evType := "crash"
+			if c.OOMKilled {
+				evType = "oom_kill"
+			}
+			ec := c.ExitCode
+			er := c.ExitReason
+			if c.Status == "running" || c.Status == "restarting" {
+				if er == "" || er == "clean_stop" || er == "unknown" {
+					er = "app_crashed"
+				}
+				if ec == 0 {
+					ec = 1
+				}
+			}
+			snapshots = append(snapshots, agent.LogSnapshot{
+				ContainerID:   c.ID,
+				ContainerName: c.Name,
+				Timestamp:     ts,
+				EventType:     evType,
+				ExitCode:      ec,
+				ExitReason:    er,
+				LogLines:      logs,
+				CPUPercent:    c.CPUPercent,
+				MemoryUsed:    c.MemoryUsed,
+				MemoryLimit:   c.MemoryLimit,
+			})
+		}
+
 		toSend := make([]agent.ContainerMetric, 0, len(containers)+len(tombstones))
 		toSend = append(toSend, containers...)
 		toSend = append(toSend, tombstones...)
