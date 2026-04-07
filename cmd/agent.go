@@ -42,6 +42,16 @@ var agentStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the docker metrics agent",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Optional one-shot config flags: allow `kernus agent start --token ...` without a prior `kernus token ...`.
+		// If provided, we persist them to agent.conf so future starts work too (including detached runs).
+		tokenFlag, _ := cmd.Flags().GetString("token")
+		serverFlag, _ := cmd.Flags().GetString("server")
+		hostFlag, _ := cmd.Flags().GetString("host")
+		intervalFlag, _ := cmd.Flags().GetInt("interval")
+		if intervalFlag < 0 {
+			intervalFlag = 0
+		}
+
 		detach, _ := cmd.Flags().GetBool("detach")
 		if detach {
 			return runDetached(os.Args)
@@ -65,6 +75,24 @@ var agentStartCmd = &cobra.Command{
 		runtimeCfg, err := config.ResolveAgentRuntimeConfig()
 		if err != nil {
 			return err
+		}
+
+		if strings.TrimSpace(tokenFlag) != "" || strings.TrimSpace(serverFlag) != "" || strings.TrimSpace(hostFlag) != "" || intervalFlag > 0 {
+			if strings.TrimSpace(tokenFlag) != "" {
+				runtimeCfg.AgentToken = strings.TrimSpace(tokenFlag)
+			}
+			if strings.TrimSpace(serverFlag) != "" {
+				runtimeCfg.ServerURL = config.ResolveServerURL(strings.TrimSpace(serverFlag))
+			}
+			if strings.TrimSpace(hostFlag) != "" {
+				runtimeCfg.HostName = strings.TrimSpace(hostFlag)
+			}
+			if intervalFlag > 0 {
+				runtimeCfg.Interval = intervalFlag
+			}
+			if _, saveErr := config.SaveAgentConfig(runtimeCfg); saveErr != nil {
+				return fmt.Errorf("cannot persist agent config: %w", saveErr)
+			}
 		}
 
 		if strings.TrimSpace(runtimeCfg.ServerURL) == "" {
@@ -670,7 +698,11 @@ func init() {
 	agentStartCmd.Flags().Bool("all-containers", false, "List stopped/exited containers too (docker ps -a); counts against plan limits")
 	agentStartCmd.Flags().StringSlice("name-prefix", nil, "Only monitor containers whose name starts with this prefix (repeat flag for multiple). Implies running-only unless --all-containers")
 	agentStartCmd.Flags().Bool("mock", false, "Use mock containers with extreme random behaviors (testing)")
-	agentStartCmd.Flags().BoolP("detach", "d", false, "Run agent in the background (detach from terminal); logs written to the kernus config directory")
+	agentStartCmd.Flags().BoolP("detach", "d", true, "Run agent in the background (detach from terminal); logs written to the kernus config directory (use --detach=false to run in foreground)")
+	agentStartCmd.Flags().String("token", "", "Agent token (kn_live_...). If set, saves it to agent.conf before starting")
+	agentStartCmd.Flags().String("server", "", "Kernus API server URL. If set, saves it to agent.conf before starting")
+	agentStartCmd.Flags().String("host", "", "Host name to report. If set, saves it to agent.conf before starting")
+	agentStartCmd.Flags().Int("interval", 0, "Collection interval in seconds. If set (>0), saves it to agent.conf before starting")
 	agentCmd.AddCommand(agentStartCmd)
 	rootCmd.AddCommand(agentCmd)
 }

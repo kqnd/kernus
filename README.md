@@ -50,17 +50,14 @@ irm https://kernus.app/install.ps1 | iex
 Then connect it to your account:
 
 ```bash
-# Authenticate
-kernus login
-
-# Create an agent token for this host
-kernus token create "prod-server-01"
-
-# Save the token and point it to the API
+# Save the agent token from the dashboard and point it to the API
 kernus token kn_live_a1b2c3... --server https://api.kernus.app --host prod-server-01
 
 # Start collecting
 kernus agent start
+
+# Stop (when needed)
+kernus agent stop
 ```
 
 That's it. The agent will begin streaming Docker container metrics to your Kernus dashboard at a plan-appropriate interval.
@@ -72,7 +69,6 @@ That's it. The agent will begin streaming Docker container metrics to your Kernu
 - **Interactive TUI** — a full terminal interface built with [tview](https://github.com/rivo/tview) and [tcell](https://github.com/gdamore/tcell). Browse containers, inspect stats, tail logs, and control workloads with keyboard shortcuts.
 - **Resilient agent loop** — exponential backoff on failures, automatic Docker daemon reconnection, graceful shutdown on `SIGINT`/`SIGTERM`.
 - **Plan-aware intervals** — the agent fetches its collection interval from the server, so plan upgrades take effect without restarting anything.
-- **Flexible authentication** — JWT-based login with session persistence. Supports both interactive TUI login and headless flag-based login for CI environments.
 - **Mock mode** — run the TUI with synthetic data for development and demos, no Docker daemon required.
 - **Cross-platform** — works on Linux, macOS, and Windows.
 
@@ -87,6 +83,8 @@ Start the background metrics agent. Reads configuration from `agent.conf` and en
 ```bash
 kernus agent start
 ```
+
+By default, `kernus agent start` runs **detached in the background**. Use `--detach=false` to keep it in the foreground.
 
 Include stopped containers (previous behavior, counts everything in `docker ps -a`):
 
@@ -123,14 +121,6 @@ kernus agent stop --force
 
 This does **not** stop a unit by service name (e.g. `systemctl stop kernus`); it only matches the CLI pattern above.
 
-### `kernus token create <label>`
-
-Create a new agent token on the server. Requires an active login session.
-
-```bash
-kernus token create "prod-server-01"
-```
-
 ### `kernus token <token> [flags]`
 
 Save an agent token to local configuration along with server URL and host identity.
@@ -145,35 +135,9 @@ kernus token kn_live_a1b2c3... --server https://api.kernus.app --host prod-serve
 | `--host` | Hostname reported to the server | System hostname |
 | `--interval` | Collection interval in seconds | `30` |
 
-### `kernus login`
-
-Authenticate with the Kernus platform. Without flags, opens an interactive TUI login form. With flags, performs headless authentication suitable for scripts.
-
-```bash
-kernus login
-kernus login --email user@example.com --password secret
-```
-
-### `kernus logout`
-
-End the current session and remove stored credentials.
-
-```bash
-kernus logout
-```
-
-### `kernus profile`
-
-Display information about the currently authenticated user.
-
-```bash
-kernus profile
-kernus profile --json
-```
-
 ### `kernus see`
 
-Launch the interactive monitoring TUI. If no valid session exists, prompts for login first.
+Launch the interactive monitoring TUI.
 
 ```bash
 kernus see
@@ -182,14 +146,6 @@ kernus see --refresh 5       # Set refresh interval to 5 seconds
 kernus see --group backend   # Filter by group
 kernus see --mock            # Use synthetic data (no Docker needed)
 kernus see --docker-host tcp://192.168.1.10:2375
-```
-
-### `kernus send`
-
-Continuously collect and send host-level metrics (CPU, RAM, disk) to the server.
-
-```bash
-kernus send --name "my-server" --group "backend" --interval 10
 ```
 
 ### `kernus config`
@@ -214,8 +170,6 @@ Two configuration files are used:
 
 - **`config.json`** — user credentials and server URL.
 - **`agent.conf`** — agent token, server URL, hostname, and collection interval.
-
-Session data is stored in `session.json` within the same directory.
 
 ### Environment Variables
 
@@ -245,12 +199,12 @@ The server URL is resolved in the following order of priority:
 ```
   CLI Entry Points
   ─────────────────────────────────────────────────────────────────
-  kernus login      kernus agent start    kernus see    kernus token
-       │                   │                   │              │
-       ▼                   ▼                   ▼              ▼
+  kernus agent start    kernus agent stop    kernus see    kernus token
+         │                   │                   │              │
+         ▼                   ▼                   ▼              ▼
   ┌─────────────────────────────────────────────────────────────┐
   │                     cmd/  (Cobra)                           │
-  │  login.go  agent.go  see.go  token.go  send.go  config.go  │
+  │  agent.go  agent_stop.go  see.go  token.go  config.go      │
   └──────┬──────────┬──────────┬───────────────────────────────┘
          │          │          │
          ▼          ▼          ▼
@@ -281,13 +235,10 @@ kernus/
 ├── cmd/                        # CLI commands (Cobra)
 │   ├── root.go                 # Root command and global config loading
 │   ├── agent.go                # `agent start` — resilient metrics loop
-│   ├── token.go                # `token create` / `token <value>` management
-│   ├── login.go                # Interactive and headless authentication
-│   ├── logout.go               # Session teardown
-│   ├── profile.go              # User profile display
+│   ├── agent_stop.go           # `agent stop` — stop running agent processes
+│   ├── token.go                # `token <value>` management
 │   ├── config.go               # Local configuration persistence
 │   ├── see.go                  # TUI launcher
-│   └── send.go                 # Host metrics collection loop
 ├── internal/
 │   ├── agent/                  # Core agent logic
 │   │   ├── collector.go        # Docker metrics collection via Docker SDK

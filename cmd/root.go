@@ -24,18 +24,16 @@ It allows you to:
 
 Examples:
   kernus config --username admin --password secret
-  kernus login
-	kernus token create "prod-server-01"
   kernus token kn_live_xxx --server https://api.kernus.app --host prod-server-01
 	kernus agent start
 	kernus agent stop
   kernus see
   kernus see --machines
-  kernus send --name "my-server" --group "backend"`,
+`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "config" || cmd.Name() == "help" || cmd.Name() == "login" || cmd.Name() == "see" || cmd.Name() == "stop" {
+		if cmd.Name() == "config" || cmd.Name() == "help" || cmd.Name() == "see" || cmd.Name() == "stop" {
 			return nil
 		}
 		loaded, err := config.Load()
