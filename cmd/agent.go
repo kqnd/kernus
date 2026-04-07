@@ -332,8 +332,12 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 	}
 
 	consecutiveErrors := 0
+	// Docker sometimes returns an empty container list while restarting; require several
+	// consecutive empty lists before treating all previously tracked containers as removed.
+	consecutiveEmptyDockerList := 0
 	lastConfigRefresh := time.Now()
 	const configRefreshMinInterval = 1 * time.Minute
+	const minConfirmedEmptyListCycles = 3
 
 	// Log snapshot cooldown: prevents snapshot storms when a container is in a crash loop.
 	// After the first snapshot, we suppress further snapshots for the same container
@@ -365,13 +369,27 @@ func runAgentLoop(ctx context.Context, stop context.CancelFunc, runtimeCfg *conf
 		containers, collectErr := collector.Collect(cycleCtx)
 		if collectErr != nil {
 			consecutiveErrors++
+			consecutiveEmptyDockerList = 0
 			fmt.Printf("✗ collect error (%d/%d): %v\n", consecutiveErrors, maxConsecutiveErrors, collectErr)
 			return
 		}
 
 		if len(containers) == 0 && len(prevByID) == 0 {
 			consecutiveErrors = 0
+			consecutiveEmptyDockerList = 0
 			return
+		}
+
+		if len(containers) == 0 && len(prevByID) > 0 {
+			consecutiveEmptyDockerList++
+			if consecutiveEmptyDockerList < minConfirmedEmptyListCycles {
+				fmt.Printf("⚠ docker list returned 0 containers while tracking %d; skipping removal/tombstones (%d/%d)\n",
+					len(prevByID), consecutiveEmptyDockerList, minConfirmedEmptyListCycles)
+				consecutiveErrors = 0
+				return
+			}
+		} else {
+			consecutiveEmptyDockerList = 0
 		}
 
 		currentByID := make(map[string]struct{}, len(containers))

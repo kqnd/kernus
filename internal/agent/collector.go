@@ -127,6 +127,13 @@ func (c *Collector) Collect(ctx context.Context) ([]ContainerMetric, error) {
 		metrics = append(metrics, metric)
 	}
 
+	// If Docker lists containers but every inspect/stats path failed, returning an empty
+	// slice with nil error would make the agent treat all previously seen containers as
+	// removed (mass tombstones). That matches daemon overload during prune/restart.
+	if len(containers) > 0 && len(metrics) == 0 {
+		return nil, fmt.Errorf("listed %d container(s) but failed to collect metrics for all of them (docker may be overloaded)", len(containers))
+	}
+
 	return metrics, nil
 }
 
