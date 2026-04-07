@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -28,10 +29,24 @@ var agentCmd = &cobra.Command{
 	Short: "Run metrics agent",
 }
 
+// agentLogPath returns the path for the background agent log file.
+func agentLogPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "kernus", "agent.log"), nil
+}
+
 var agentStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the docker metrics agent",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		detach, _ := cmd.Flags().GetBool("detach")
+		if detach {
+			return runDetached(os.Args)
+		}
+
 		updateCtx, cancelUpdate := context.WithTimeout(context.Background(), 30*time.Second)
 		latestVersion, updateErr := update.NewClient("").MaybeSelfUpdate(updateCtx, currentVersion)
 		cancelUpdate()
@@ -655,6 +670,7 @@ func init() {
 	agentStartCmd.Flags().Bool("all-containers", false, "List stopped/exited containers too (docker ps -a); counts against plan limits")
 	agentStartCmd.Flags().StringSlice("name-prefix", nil, "Only monitor containers whose name starts with this prefix (repeat flag for multiple). Implies running-only unless --all-containers")
 	agentStartCmd.Flags().Bool("mock", false, "Use mock containers with extreme random behaviors (testing)")
+	agentStartCmd.Flags().BoolP("detach", "d", false, "Run agent in the background (detach from terminal); logs written to the kernus config directory")
 	agentCmd.AddCommand(agentStartCmd)
 	rootCmd.AddCommand(agentCmd)
 }
