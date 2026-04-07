@@ -55,12 +55,13 @@ func runDetached(osArgs []string) error {
 	if err := c.Start(); err != nil {
 		return fmt.Errorf("failed to start agent in background: %w", err)
 	}
+	pid := c.Process.Pid
 	// Release the parent's reference so the child is not waited on.
 	if err := c.Process.Release(); err != nil {
 		return fmt.Errorf("could not release background process: %w", err)
 	}
 
-	fmt.Printf("✓ Agent started in background (PID %d)\n", c.Process.Pid)
+	fmt.Printf("✓ Agent started in background (PID %d)\n", pid)
 	fmt.Printf("  Logs: %s\n", logPath)
 	fmt.Printf("  Stop: kernus agent stop\n")
 	return nil
