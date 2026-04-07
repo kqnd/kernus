@@ -19,6 +19,9 @@ type Details struct {
 	machine     *models.Machine
 	machineMode bool
 	onboarding  string
+	// lastViewKey / lastViewTab detect refresh of the same entity+tab so we can preserve scroll.
+	lastViewKey string
+	lastViewTab int
 }
 
 func NewDetails(machineMode bool) *Details {
@@ -81,6 +84,18 @@ func (d *Details) UpdateMachine(m *models.Machine) {
 }
 
 func (d *Details) render() {
+	savedRow, savedCol := d.View.GetScrollOffset()
+
+	var currentKey string
+	if d.machineMode {
+		if d.machine != nil {
+			currentKey = "m:" + d.machine.Name
+		}
+	} else if d.container != nil {
+		currentKey = "c:" + d.container.ID
+	}
+	wasSameView := currentKey != "" && currentKey == d.lastViewKey && d.currentTab == d.lastViewTab
+
 	var b strings.Builder
 
 	b.WriteString(d.renderTabs())
@@ -88,8 +103,16 @@ func (d *Details) render() {
 
 	if d.machineMode {
 		if d.machine == nil {
-			b.WriteString("\n  [gray]Select a machine to view details[white]")
+			if strings.TrimSpace(d.onboarding) != "" {
+				b.WriteString("\n")
+				b.WriteString(d.onboarding)
+			} else {
+				b.WriteString("\n  [gray]Select a machine to view details[white]")
+			}
 			d.View.SetText(b.String())
+			d.View.ScrollToBeginning()
+			d.lastViewKey = ""
+			d.lastViewTab = d.currentTab
 			return
 		}
 		d.renderMachineContent(&b)
@@ -102,13 +125,27 @@ func (d *Details) render() {
 				b.WriteString("\n  [gray]Select a container to view details[white]")
 			}
 			d.View.SetText(b.String())
+			d.View.ScrollToBeginning()
+			d.lastViewKey = ""
+			d.lastViewTab = d.currentTab
 			return
 		}
 		d.renderContainerContent(&b)
 	}
 
 	d.View.SetText(b.String())
-	d.View.ScrollToBeginning()
+
+	// Logs tab: keep tail in view as new lines arrive (ScrollToEnd enables trackEnd in tview).
+	if !d.machineMode && d.currentTab == 4 {
+		d.View.ScrollToEnd()
+	} else if wasSameView {
+		d.View.ScrollTo(savedRow, savedCol)
+	} else {
+		d.View.ScrollToBeginning()
+	}
+
+	d.lastViewKey = currentKey
+	d.lastViewTab = d.currentTab
 }
 
 func (d *Details) renderTabs() string {

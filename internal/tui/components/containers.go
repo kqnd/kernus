@@ -119,6 +119,23 @@ func (cl *ContainerList) GetSelectedContainer() *models.Container {
 	return item.container
 }
 
+// ReselectByID re-applies list selection after layout (e.g. second draw tick) so tview can
+// scroll the correct row into view once the list has a non-zero height.
+func (cl *ContainerList) ReselectByID(id string) {
+	if id == "" {
+		return
+	}
+	for i, item := range cl.items {
+		if !item.isGroup && item.container != nil && item.container.ID == id {
+			cl.View.SetCurrentItem(i)
+			if cl.selectedFunc != nil {
+				cl.selectedFunc(item.container)
+			}
+			return
+		}
+	}
+}
+
 func (cl *ContainerList) UpdateContainersPreserveSelection(containers []*models.Container, selectedID string) {
 	cl.containers = containers
 	cl.buildGroups()

@@ -483,6 +483,18 @@ func (a *App) performRefresh(ctx context.Context) {
 			a.details.UpdateContainer(selected)
 		}
 	})
+
+	// First draw after rebuild can run with list height 0, so adjustOffset skips and the highlight
+	// stays on row 0 until the next frame. Re-apply selection once layout is stable.
+	if selectedID != "" {
+		sid := selectedID
+		a.tviewApp.QueueUpdateDraw(func() {
+			a.containerList.ReselectByID(sid)
+			if sel := a.containerList.GetSelectedContainer(); sel != nil {
+				a.details.UpdateContainer(sel)
+			}
+		})
+	}
 }
 
 func (a *App) refreshMachines() {
