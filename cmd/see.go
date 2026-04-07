@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/kiev/kernus/internal/auth"
 	"github.com/kiev/kernus/internal/models"
 	tuiPkg "github.com/kiev/kernus/internal/tui"
@@ -12,7 +10,9 @@ import (
 var seeCmd = &cobra.Command{
 	Use:   "see",
 	Short: "Launch the monitoring TUI",
-	Long: `Start the interactive terminal UI for monitoring.
+	Long: `Start the interactive terminal UI for local Docker monitoring.
+No cloud login is required. If you are logged in (kernus login), the header
+shows your user and the profile panel (i) is available.
 
 Examples:
   kernus see
@@ -42,24 +42,13 @@ Examples:
 		}
 
 		var session *models.Session
-
-		storedSession, err := auth.LoadSession()
-		if err != nil || !auth.IsSessionValid() {
-			loginErr := tuiPkg.RunLoginApp()
-			if loginErr != nil {
-				return loginErr
+		if storedSession, err := auth.LoadSession(); err == nil && auth.IsSessionValid() {
+			session = &models.Session{
+				Token:     storedSession.Token,
+				Username:  storedSession.Username,
+				UserID:    storedSession.UserID,
+				ExpiresAt: storedSession.ExpiresAt,
 			}
-			storedSession, err = auth.LoadSession()
-			if err != nil {
-				return fmt.Errorf("login failed — cannot proceed")
-			}
-		}
-
-		session = &models.Session{
-			Token:     storedSession.Token,
-			Username:  storedSession.Username,
-			UserID:    storedSession.UserID,
-			ExpiresAt: storedSession.ExpiresAt,
 		}
 
 		tuiCfg := tuiPkg.Config{
