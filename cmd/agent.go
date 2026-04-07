@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kiev/kernus/internal/agent"
+	"github.com/kiev/kernus/internal/agentlock"
 	"github.com/kiev/kernus/internal/config"
 	"github.com/kiev/kernus/internal/update"
 	"github.com/spf13/cobra"
@@ -38,22 +39,78 @@ func agentLogPath() (string, error) {
 	return filepath.Join(dir, "kernus", "agent.log"), nil
 }
 
+// resolveAgentStartConfig loads agent.conf + env, applies start flags, and persists when flags override.
+func resolveAgentStartConfig(cmd *cobra.Command) (*config.AgentConfig, error) {
+	tokenFlag, _ := cmd.Flags().GetString("token")
+	serverFlag, _ := cmd.Flags().GetString("server")
+	hostFlag, _ := cmd.Flags().GetString("host")
+	intervalFlag, _ := cmd.Flags().GetInt("interval")
+	if intervalFlag < 0 {
+		intervalFlag = 0
+	}
+
+	runtimeCfg, err := config.ResolveAgentRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(tokenFlag) != "" || strings.TrimSpace(serverFlag) != "" || strings.TrimSpace(hostFlag) != "" || intervalFlag > 0 {
+		if strings.TrimSpace(tokenFlag) != "" {
+			runtimeCfg.AgentToken = strings.TrimSpace(tokenFlag)
+		}
+		if strings.TrimSpace(serverFlag) != "" {
+			runtimeCfg.ServerURL = config.ResolveServerURL(strings.TrimSpace(serverFlag))
+		}
+		if strings.TrimSpace(hostFlag) != "" {
+			runtimeCfg.HostName = strings.TrimSpace(hostFlag)
+		}
+		if intervalFlag > 0 {
+			runtimeCfg.Interval = intervalFlag
+		}
+		if _, saveErr := config.SaveAgentConfig(runtimeCfg); saveErr != nil {
+			return nil, fmt.Errorf("cannot persist agent config: %w", saveErr)
+		}
+	}
+
+	return runtimeCfg, nil
+}
+
+func validateAgentCredentials(runtimeCfg *config.AgentConfig) error {
+	if strings.TrimSpace(runtimeCfg.ServerURL) == "" {
+		return fmt.Errorf("missing KERNUS_SERVER_URL (env or 'kernus token ... --server')")
+	}
+	if strings.TrimSpace(runtimeCfg.AgentToken) == "" {
+		return fmt.Errorf("missing KERNUS_AGENT_TOKEN (env or 'kernus token <token>')")
+	}
+	return nil
+}
+
+func applyAgentRuntimeDefaults(runtimeCfg *config.AgentConfig) {
+	if strings.TrimSpace(runtimeCfg.HostName) == "" {
+		hn, _ := os.Hostname()
+		runtimeCfg.HostName = hn
+	}
+	if runtimeCfg.Interval <= 0 {
+		runtimeCfg.Interval = 30
+	}
+}
+
 var agentStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the docker metrics agent",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Optional one-shot config flags: allow `kernus agent start --token ...` without a prior `kernus token ...`.
-		// If provided, we persist them to agent.conf so future starts work too (including detached runs).
-		tokenFlag, _ := cmd.Flags().GetString("token")
-		serverFlag, _ := cmd.Flags().GetString("server")
-		hostFlag, _ := cmd.Flags().GetString("host")
-		intervalFlag, _ := cmd.Flags().GetInt("interval")
-		if intervalFlag < 0 {
-			intervalFlag = 0
-		}
-
 		detach, _ := cmd.Flags().GetBool("detach")
 		if detach {
+			runtimeCfg, err := resolveAgentStartConfig(cmd)
+			if err != nil {
+				return err
+			}
+			if err := validateAgentCredentials(runtimeCfg); err != nil {
+				return err
+			}
+			if err := agentlock.PreflightAvailable(runtimeCfg.AgentToken); err != nil {
+				return err
+			}
 			return runDetached(os.Args)
 		}
 
@@ -72,42 +129,21 @@ var agentStartCmd = &cobra.Command{
 			return nil
 		}
 
-		runtimeCfg, err := config.ResolveAgentRuntimeConfig()
+		runtimeCfg, err := resolveAgentStartConfig(cmd)
 		if err != nil {
 			return err
 		}
 
-		if strings.TrimSpace(tokenFlag) != "" || strings.TrimSpace(serverFlag) != "" || strings.TrimSpace(hostFlag) != "" || intervalFlag > 0 {
-			if strings.TrimSpace(tokenFlag) != "" {
-				runtimeCfg.AgentToken = strings.TrimSpace(tokenFlag)
-			}
-			if strings.TrimSpace(serverFlag) != "" {
-				runtimeCfg.ServerURL = config.ResolveServerURL(strings.TrimSpace(serverFlag))
-			}
-			if strings.TrimSpace(hostFlag) != "" {
-				runtimeCfg.HostName = strings.TrimSpace(hostFlag)
-			}
-			if intervalFlag > 0 {
-				runtimeCfg.Interval = intervalFlag
-			}
-			if _, saveErr := config.SaveAgentConfig(runtimeCfg); saveErr != nil {
-				return fmt.Errorf("cannot persist agent config: %w", saveErr)
-			}
+		if err := validateAgentCredentials(runtimeCfg); err != nil {
+			return err
 		}
+		applyAgentRuntimeDefaults(runtimeCfg)
 
-		if strings.TrimSpace(runtimeCfg.ServerURL) == "" {
-			return fmt.Errorf("missing KERNUS_SERVER_URL (env or 'kernus token ... --server')")
+		releaseLock, lockErr := agentlock.Hold(runtimeCfg.AgentToken)
+		if lockErr != nil {
+			return lockErr
 		}
-		if strings.TrimSpace(runtimeCfg.AgentToken) == "" {
-			return fmt.Errorf("missing KERNUS_AGENT_TOKEN (env or 'kernus token <token>')")
-		}
-		if strings.TrimSpace(runtimeCfg.HostName) == "" {
-			hn, _ := os.Hostname()
-			runtimeCfg.HostName = hn
-		}
-		if runtimeCfg.Interval <= 0 {
-			runtimeCfg.Interval = 30
-		}
+		defer releaseLock()
 
 		dockerHost, err := cmd.Flags().GetString("docker-host")
 		if err != nil {
