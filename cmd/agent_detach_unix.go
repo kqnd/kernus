@@ -35,7 +35,8 @@ func runDetached(osArgs []string) error {
 		return fmt.Errorf("could not determine executable path: %w", err)
 	}
 
-	// Rebuild argv without the --detach / -d flag.
+	// Rebuild argv without the --detach / -d flag, then pin --detach=false so
+	// the child process doesn't try to detach again (the default is now true).
 	var filteredArgs []string
 	for _, a := range osArgs[1:] {
 		if a == "--detach" || a == "-d" || strings.HasPrefix(a, "--detach=") {
@@ -43,6 +44,7 @@ func runDetached(osArgs []string) error {
 		}
 		filteredArgs = append(filteredArgs, a)
 	}
+	filteredArgs = append(filteredArgs, "--detach=false")
 
 	c := exec.Command(exe, filteredArgs...)
 	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}

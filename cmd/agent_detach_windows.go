@@ -34,6 +34,8 @@ func runDetached(osArgs []string) error {
 		return fmt.Errorf("could not determine executable path: %w", err)
 	}
 
+	// Strip the --detach / -d flag and pin --detach=false so the child process
+	// doesn't try to detach again (the default is now true).
 	var filteredArgs []string
 	for _, a := range osArgs[1:] {
 		if a == "--detach" || a == "-d" || strings.HasPrefix(a, "--detach=") {
@@ -41,6 +43,7 @@ func runDetached(osArgs []string) error {
 		}
 		filteredArgs = append(filteredArgs, a)
 	}
+	filteredArgs = append(filteredArgs, "--detach=false")
 
 	c := exec.Command(exe, filteredArgs...)
 	// DETACHED_PROCESS (0x00000008): child has no console and is not part of the
