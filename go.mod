@@ -7,6 +7,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/rivo/tview v0.0.0-20241103174730-c76f7879f592
 	github.com/spf13/cobra v1.8.1
+	golang.org/x/sys v0.28.0
 )
 
 require (
@@ -38,7 +39,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.33.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.33.0 // indirect
 	go.opentelemetry.io/otel/trace v1.33.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.15.0 // indirect

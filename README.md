@@ -109,6 +109,20 @@ Environment equivalents: `KERNUS_AGENT_ALL_CONTAINERS=1`, `KERNUS_AGENT_NAME_PRE
 | `--all-containers` | List stopped/exited containers too (`docker ps -a`); they count toward plan limits. |
 | `--name-prefix` | Repeatable; only containers whose name starts with one of these strings (after `/`) are included. |
 
+### `kernus agent stop`
+
+Stop every process on this machine that looks like a running `kernus agent start` (same detection idea as `pgrep -f 'kernus agent start'` on Linux). Sends **SIGTERM**, waits up to **10s** by default, then exits with an error if something is still running. Use **`--force`** to **SIGKILL** stragglers.
+
+Useful when you started the agent in one terminal but a copy kept running in the background, or you are unsure which PID is active.
+
+```bash
+kernus agent stop
+kernus agent stop --wait 5
+kernus agent stop --force
+```
+
+This does **not** stop a unit by service name (e.g. `systemctl stop kernus`); it only matches the CLI pattern above.
+
 ### `kernus token create <label>`
 
 Create a new agent token on the server. Requires an active login session.
